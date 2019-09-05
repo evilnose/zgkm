@@ -1,0 +1,12 @@
+# third party
+include/
+
+# state tracker
+.buildmode
+
+# binaries
+out/
+obj/
+
+# IDE 
+.vscode
