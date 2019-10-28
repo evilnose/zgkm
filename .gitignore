@@ -10,3 +10,6 @@ obj/
 
 # IDE 
 .vscode
+
+# Vim
+**/*.swp

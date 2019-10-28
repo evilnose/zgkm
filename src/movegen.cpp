@@ -39,7 +39,7 @@ Bitboard absolute_pins(const Position& pos, Color pinned_color,
     return pinned;
 }
 
-constexpr void add_moves(vector<Move>& moves, Square src, Bitboard tgts) {
+void add_moves(vector<Move>& moves, Square src, Bitboard tgts) {
     while (tgts != 0ULL) {
         Square sq = bb::bitscan_fwd(tgts);
         moves.push_back(create_move(sq, src, NORMAL_MOVE, KING));
@@ -48,7 +48,7 @@ constexpr void add_moves(vector<Move>& moves, Square src, Bitboard tgts) {
 }
 
 // returns whether (squares are on same rank OR squares are on same file)
-constexpr bool same_line(Square sq1, Square sq2) {
+inline bool same_line(Square sq1, Square sq2) {
     return (sq_rank(sq1) == sq_rank(sq2)) || (sq_file(sq1) == sq_file(sq2));
 }
 }  // namespace
