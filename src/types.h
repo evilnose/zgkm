@@ -43,7 +43,6 @@ enum Color {
 
 enum MoveType {
     NORMAL_MOVE,
-    CAPTURE_MOVE,
     CASTLING_MOVE,
     PROMOTION,
     EN_PASSANT,
@@ -56,6 +55,7 @@ enum BoardSide {
     N_BOARD_SIDES
 };
 
+/*
 struct Move {
     MoveType type;
     Color side;
@@ -64,6 +64,42 @@ struct Move {
     Square dst_square;
     BoardSide castle_side;
 };
+*/
+/*
+Move representation
+bits 0-5:   target square (64)
+bits 6-11:  source square (64)
+bits 12-13: move type (4)
+bits 14-15: promotion piece (4; 0->KNIGHT, ... 3->QUEEN)
+*/
+using Move = unsigned short;
+constexpr int MOVE_LEN = 16;
+constexpr Move MOVE_TARGET_MASK = 0xFC00;
+constexpr Move MOVE_SOURCE_MASK = 0x3F0;
+constexpr Move MOVE_PROMOTION_MASK = 0x3;
+
+constexpr Square move_target(Move mv) {
+    return (Square)(mv >> (MOVE_LEN - 6));
+}
+
+constexpr Square move_source(Move mv) {
+    return (Square)((mv & ~MOVE_TARGET_MASK) >> (MOVE_LEN - 12));
+}
+
+constexpr MoveType move_type(Move mv) {
+    return (MoveType)((mv & ~(MOVE_TARGET_MASK | MOVE_SOURCE_MASK)) >>
+                      (MOVE_LEN - 14));
+}
+
+constexpr PieceType move_promotion(Move mv) {
+    return (PieceType)((mv & MOVE_PROMOTION_MASK) + 2);
+}
+
+constexpr Move create_move(Square tar, Square src, MoveType type,
+                           PieceType piece) {
+    return ((Move)piece - 2) | (((Move)type) << 2) | ((Move)src << 4) |
+           ((Move)tar << 10);
+}
 
 enum CastleState {
     WHITE_O_O = 1 << 0,
@@ -71,3 +107,5 @@ enum CastleState {
     BLACK_O_O = 1 << 2,
     BLACK_O_O_O = 1 << 3
 };
+
+extern CastleState init_cstate;

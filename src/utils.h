@@ -3,12 +3,35 @@
 #include "types.h"
 
 #include <random>
+#include <string>
 
-bool move_square(Square& sq, const Direction& dir);
-Bitboard mask_square(const Square& sq);
-int popcount(unsigned long long);
-inline int sq_rank(Square sq) { return sq / 8; }
-inline int sq_file(Square sq) { return sq % 8; }
+constexpr int sq_rank(Square sq) { return sq / 8; }
+constexpr int sq_file(Square sq) { return sq % 8; }
+
+constexpr bool move_square(Square& sq, int d_rank, int d_file) {
+    int rank = sq_rank(sq) + d_rank;
+    int file = sq_file(sq) + d_file;
+
+    if (rank < 0 || rank >= 8 || file < 0 || file >= 8) {
+        return false;
+    }
+
+    sq = rank * 8 + file;
+    return true;
+}
+
+constexpr bool move_square(Square& sq, const Direction& dir) {
+    return move_square(sq, dir.d_rank, dir.d_file);
+}
+
+constexpr Bitboard mask_square(const Square& square) {
+    return 1ULL << square;
+}
+
+constexpr int popcount(unsigned long long n) {
+    return __builtin_popcount((unsigned int)(n)) +
+           __builtin_popcount((unsigned int)(n >> 32));
+}
 
 // pseudorandom number generator
 class PRNG {
@@ -33,3 +56,9 @@ class PRNG {
         return U64(rand64() & rand64() & rand64());
     }
 };
+
+constexpr Color opposite_color(Color c) {
+    return (Color)((int)N_COLORS - 1 - (int)c);
+}
+
+std::string repr(Bitboard board);

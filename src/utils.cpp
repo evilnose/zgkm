@@ -1,21 +1,19 @@
 #include "utils.h"
 
-bool move_square(Square& sq, const Direction& dir) {
-    int rank = sq_rank(sq) + dir.d_rank;
-    int file = sq_file(sq) + dir.d_file;
+using std::string;
 
-    if (rank < 0 || rank >= 8 || file < 0 || file >= 8) {
-        return false;
+string repr(Bitboard bitboard) {
+    char ret[73];  // 8 * 9
+    for (int i = 0; i < 8; i++) {
+        ret[i * 9 + 8] = '\n';
     }
 
-    sq = rank * 8 + file;
-    return true;
-}
-
-Bitboard mask_square(const Square& square) {
-    return 1ULL << square;
-}
-
-int popcount(unsigned long long n) {
-    return __builtin_popcount((unsigned int)(n)) + __builtin_popcount((unsigned int)(n >> 32));
+    for (int index = 0; index < 64; index++) {
+        int rank = sq_rank(index);
+        int file = sq_file(index);
+        char ch = ((1ULL << index) & bitboard) ? '1' : '0';
+        ret[(7 - rank) * 9 + file] = ch;
+    }
+    ret[72] = '\0';
+    return string(ret);
 }
