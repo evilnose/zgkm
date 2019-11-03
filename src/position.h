@@ -4,7 +4,6 @@
 #include <vector>
 
 #include "bitboard.h"
-#include "moves.h"
 
 struct Position {
    public:

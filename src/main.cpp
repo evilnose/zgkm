@@ -49,6 +49,21 @@ int main(int argc, char* argv[]) {
     assert(move_type(mv) == mt);
     assert(move_promotion(mv) == pt);
     printf("Done.\n");
+
+    printf("Testing movegen - 0 checks...\n");
+    const char* board2 = 
+        "........"
+        "...K..P."
+        "........"
+        "........"
+        "........"
+        "........"
+        "R....nk."
+        "........";
+    Position pos2(board2, WHITE, cstate);
+    std::vector<Move> moves = gen_legal_moves(pos2);
+    printf("Found %zd legal moves\n", moves.size());
+    printf("Done.\n");
     
     printf("All done.\n");
     return 0;

@@ -133,6 +133,8 @@ endfunc
 
 */
 vector<Move> gen_legal_moves(const Position& pos) {
+    // TODO pawns
+    // TODO castling
     Color atk_c = pos.get_side_to_move();
     Color def_c = opposite_color(atk_c);
     Bitboard atk_occ = pos.get_color_bitboard(atk_c);
@@ -153,10 +155,9 @@ vector<Move> gen_legal_moves(const Position& pos) {
         Bitboard pinner = 0ULL;
         Bitboard pinned = absolute_pins(pos, atk_c, pinner);
 
-        Bitboard free_knights = pos.get_bitboard(atk_c, KNIGHT) & ~pinned;
         // pawns
-        // TODO
 
+        Bitboard free_knights = pos.get_bitboard(atk_c, KNIGHT) & ~pinned;
         // knights
         while (free_knights != 0ULL) {
             Square sq = bb::bitscan_fwd(free_knights);
@@ -210,7 +211,7 @@ vector<Move> gen_legal_moves(const Position& pos) {
         Bitboard free_queens = queens & ~pinned;
         Bitboard pinned_queens = queens & pinned;
         while (free_queens != 0ULL) {
-            Square sq = bb::bitscan_fwd(free_rooks);
+            Square sq = bb::bitscan_fwd(free_queens);
             add_moves(moves, sq, bb::queen_attacks(sq, all_occ));
             free_queens &= ~mask_square(sq);
         }
@@ -224,15 +225,13 @@ vector<Move> gen_legal_moves(const Position& pos) {
                 // pinned like a bishop
                 add_moves(moves, sq, bb::bishop_attacks(sq, all_occ) & kb_atk);
             }
+            pinned_queens &= ~mask_square(sq);
         }
-
-        // king
-        king_attacks = bb::king_attacks(king_sq) & def_attacks;
     } else if (n_checks == 2) {
         // only king moves are legal
         // TODO remove this case if redundant
-        return moves;
     }
+	return moves;
     // TODO add n_checks == 1
 }
 
