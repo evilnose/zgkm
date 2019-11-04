@@ -78,27 +78,32 @@ constexpr Move MOVE_TARGET_MASK = 0xFC00;
 constexpr Move MOVE_SOURCE_MASK = 0x3F0;
 constexpr Move MOVE_PROMOTION_MASK = 0x3;
 
-constexpr Square move_target(Move mv) {
+inline Square move_target(Move mv) {
     return (Square)(mv >> (MOVE_LEN - 6));
 }
 
-constexpr Square move_source(Move mv) {
+inline Square move_source(Move mv) {
     return (Square)((mv & ~MOVE_TARGET_MASK) >> (MOVE_LEN - 12));
 }
 
-constexpr MoveType move_type(Move mv) {
-    return (MoveType)((mv & ~(MOVE_TARGET_MASK | MOVE_SOURCE_MASK)) >>
-                      (MOVE_LEN - 14));
+inline MoveType move_type(Move mv) {
+    return (MoveType)((mv & 0xf) >> (MOVE_LEN - 14));
 }
 
-constexpr PieceType move_promotion(Move mv) {
+inline PieceType move_promotion(Move mv) {
     return (PieceType)((mv & MOVE_PROMOTION_MASK) + 2);
 }
 
-constexpr Move create_move(Square tar, Square src, MoveType type,
-                           PieceType piece) {
-    return ((Move)piece - 2) | (((Move)type) << 2) | ((Move)src << 4) |
+/*
+inline Move create_move(Square tar, Square src, MoveType type,
+                           PieceType promotion) {
+    return ((Move)piece - 2) | (((Move)promotion) << 2) | ((Move)src << 4) |
            ((Move)tar << 10);
+}
+*/
+
+inline Move create_normal_move(Square tar, Square src) {
+    return (((Move)NORMAL_MOVE) << 2) | ((Move)src << 4) | ((Move)tar << 10);
 }
 
 enum CastleState {

@@ -10,19 +10,19 @@ using std::string;
 const Bitboard REL_OCC_MASK = 0x7E7E7E7E7E7E00ULL;
 
 // magic bitboard database for bishops
-bb::MagicInfo bb::b_magics[64];
-bb::MagicInfo bb::r_magics[64];
-Bitboard bb::b_attack_table[bb::B_TABLE_SZ];  // the big attack table
-Bitboard bb::r_attack_table[bb::R_TABLE_SZ];
+bboard::MagicInfo bboard::b_magics[64];
+bboard::MagicInfo bboard::r_magics[64];
+Bitboard bboard::b_attack_table[bboard::B_TABLE_SZ];  // the big attack table
+Bitboard bboard::r_attack_table[bboard::R_TABLE_SZ];
 Direction b_directions[]{NORTHWEST, NORTHEAST, SOUTHWEST, SOUTHEAST};
 Direction r_directions[]{NORTH, SOUTH, WEST, EAST};
 
-Bitboard bb::p_attack_table[N_COLORS][64];
-Bitboard bb::n_attack_table[64];
-Bitboard bb::k_attack_table[64];
+Bitboard bboard::p_attack_table[N_COLORS][64];
+Bitboard bboard::n_attack_table[64];
+Bitboard bboard::k_attack_table[64];
 
 // for bitscan
-const Square bb::debruijn_table[64] =
+const Square bboard::debruijn_table[64] =
     {
         0, 1, 2, 53, 3, 7, 54, 27,
         4, 38, 41, 8, 34, 55, 48, 28,
@@ -33,7 +33,7 @@ const Square bb::debruijn_table[64] =
         51, 25, 36, 32, 60, 20, 57, 16,
         50, 31, 19, 15, 30, 14, 13, 12};
 
-const Bitboard bb::DEBRUIJN = 0x022fdd63cc95386d;
+const Bitboard bboard::DEBRUIJN = 0x022fdd63cc95386d;
 
 /*
 Indexing:
@@ -73,11 +73,11 @@ constexpr void b_init_occupancies() {
         Bitboard rel_occupancy = mask & REL_OCC_MASK;
         assert(rel_occupancy);
 
-        bb::b_magics[sq].occupancy_mask = rel_occupancy;
+        bboard::b_magics[sq].occupancy_mask = rel_occupancy;
 
         // soft TODO: optimize for 32 bit
         // https://www.chessprogramming.org/Magic_Bitboards#32-bit_Magics
-        bb::b_magics[sq].shift = 64 - popcount(rel_occupancy);
+        bboard::b_magics[sq].shift = 64 - popcount(rel_occupancy);
     }
 }
 
@@ -96,23 +96,22 @@ constexpr void r_init_occupancies() {
         for (int f = file - 1; f > 0; f--) mask |= (1ULL << (f + rank * 8));
 
         assert(mask);
-        bb::r_magics[sq].occupancy_mask = mask;
+        bboard::r_magics[sq].occupancy_mask = mask;
 
         // soft TODO: optimize for 32 bit
         // https://www.chessprogramming.org/Magic_Bitboards#32-bit_Magics
-        bb::r_magics[sq].shift = 64 - popcount(mask);
+        bboard::r_magics[sq].shift = 64 - popcount(mask);
     }
 }
 
 /*
 Generate magics
  */
-void gen_magics(bb::MagicInfo magics[], Bitboard table[],
+void gen_magics(bboard::MagicInfo magics[], Bitboard table[],
                 Direction directions[]) {
     Bitboard reference[4096];  // 2^12, largest size of occ set of any square
     Bitboard occupancy[4096];
     unsigned long long seed = 322;  // TODO find good seeds
-    int ordsum = 0;
     int ord = 0;  // ordinality; used as index for reference[]
     for (Square sq = SQ_A1; sq <= SQ_H8; sq++) {
         Bitboard rel_occupancy = magics[sq].occupancy_mask;
@@ -208,8 +207,8 @@ void init_magic(void) {
     b_init_occupancies();
     r_init_occupancies();
 
-    gen_magics(bb::b_magics, bb::b_attack_table, b_directions);
-    gen_magics(bb::r_magics, bb::r_attack_table, r_directions);
+    gen_magics(bboard::b_magics, bboard::b_attack_table, b_directions);
+    gen_magics(bboard::r_magics, bboard::r_attack_table, r_directions);
 }
 
 // initialize attack tables for pawns, knights, and kings
@@ -234,7 +233,7 @@ void init_attack_tables(void) {
                 mask |= mask_square(t_sq);
             }
 
-            bb::p_attack_table[(int)c][sq] = mask;
+            bboard::p_attack_table[(int)c][sq] = mask;
         }
     }
 
@@ -259,7 +258,7 @@ void init_attack_tables(void) {
             }
         }
 
-        bb::n_attack_table[sq] = mask;
+        bboard::n_attack_table[sq] = mask;
     }
 
     // kings
@@ -276,12 +275,12 @@ void init_attack_tables(void) {
 
         mask &= ~mask_square(sq); // unset bit at offset (0, 0)
 
-        bb::k_attack_table[sq] = mask;
+        bboard::k_attack_table[sq] = mask;
     }
 }
 }  // namespace
 
-void bb::initialize() {
+void bboard::initialize() {
     printf("Initializing magics...\n");
     init_magic();
     printf("Done.\n");
@@ -290,7 +289,7 @@ void bb::initialize() {
     printf("Done.\n");
 }
 
-unsigned int bb::MagicInfo::get_index(Bitboard occupancy) {
+unsigned int bboard::MagicInfo::get_index(Bitboard occupancy) {
     return (unsigned int)(((occupancy & occupancy_mask) * magic) >> shift);
 }
 
@@ -298,7 +297,7 @@ void test_magics() {
     printf("Magic initialized. Testing... \n");
 
     for (Square sq = SQ_A1; sq <= SQ_H8; sq++) {
-        bb::MagicInfo m = bb::b_magics[sq];
+        bboard::MagicInfo m = bboard::b_magics[sq];
         Bitboard occ = m.occupancy_mask;
         Bitboard n = 0ULL;
         do {
@@ -313,7 +312,7 @@ void test_magics() {
     std::cout << "Magics tested for bishop" << std::endl;
 
     for (Square sq = SQ_A1; sq <= SQ_H8; sq++) {
-        bb::MagicInfo m = bb::r_magics[sq];
+        bboard::MagicInfo m = bboard::r_magics[sq];
         Bitboard occ = m.occupancy_mask;
         Bitboard n = 0ULL;
         do {
@@ -328,7 +327,7 @@ void test_magics() {
     std::cout << "Magics tested for rook" << std::endl;
 }
 
-Bitboard bb::blocker(Square s1, Square s2, Bitboard occ) {
+Bitboard bboard::blocker(Square s1, Square s2, Bitboard occ) {
     I8 d_rank = sq_rank(s2) - sq_rank(s1);
     I8 d_file = sq_file(s2) - sq_file(s1);
 
@@ -344,7 +343,7 @@ Bitboard bb::blocker(Square s1, Square s2, Bitboard occ) {
     return 0ULL;
 }
 
-Bitboard bb::bishop_xray_attacks(Square sq, Bitboard occ, Bitboard blockers) {
+Bitboard bboard::bishop_xray_attacks(Square sq, Bitboard occ, Bitboard blockers) {
     Bitboard attacks = bishop_attacks(sq, occ);  // attacks b4 removing blockers
     blockers &= attacks;                         // remove only blockers of bishop's ray
     // get symmetric difference between attacks before removing blockers and
@@ -352,7 +351,7 @@ Bitboard bb::bishop_xray_attacks(Square sq, Bitboard occ, Bitboard blockers) {
     return attacks ^ bishop_attacks(sq, occ ^ blockers);
 }
 
-Bitboard bb::rook_xray_attacks(Square sq, Bitboard occ, Bitboard blockers) {
+Bitboard bboard::rook_xray_attacks(Square sq, Bitboard occ, Bitboard blockers) {
     Bitboard attacks = rook_attacks(sq, occ);
     blockers &= attacks;
     return attacks ^ rook_attacks(sq, occ ^ blockers);

@@ -5,7 +5,7 @@
 
 #include "bitboard.h"
 
-struct Position {
+class Position {
    public:
 
     Position();
@@ -57,6 +57,8 @@ struct Position {
     inline Bitboard get_all_bitboard() const {
         return piece_bitboards[ANY_PIECE];
     }
+
+    bool get_piece_at(Square sq, Color& c_out, PieceType& p_out) const;
 
     Bitboard get_attackers(Square target_sq, Color atk_color) const;
 

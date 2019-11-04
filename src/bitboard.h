@@ -4,7 +4,7 @@
 
 #include "types.h"
 
-namespace bb {
+namespace bboard {
 
 struct MagicInfo {
     Bitboard magic;           // magic that multiplies the key to get the index
@@ -38,6 +38,11 @@ std::string repr(Bitboard bitboard);
 // return the index of the least significant set bit
 inline Square bitscan_fwd(Bitboard board) {
     return debruijn_table[((board & -board) * DEBRUIJN) >> 58];
+}
+
+// return whether there is exactly one bit set
+inline bool one_bit(Bitboard board) {
+    return board && !(board & (board - 1)); // && board for edge case 0
 }
 
 inline Bitboard bishop_attacks(Square sq, Bitboard occ) {

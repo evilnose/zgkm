@@ -14,24 +14,24 @@ Bitboard absolute_pins(const Position& pos, Color pinned_color,
     Bitboard pinned = 0ULL;
     Bitboard full_occ = pos.get_all_bitboard();
     Bitboard own_occ = pos.get_color_bitboard(pinned_color);
-    Square king_sq = bb::bitscan_fwd(pos.get_bitboard(pinned_color, KING));
+    Square king_sq = bboard::bitscan_fwd(pos.get_bitboard(pinned_color, KING));
 
     Bitboard queen_occ = pos.get_bitboard(opp_color, QUEEN);
-    Bitboard pinner = bb::rook_xray_attacks(king_sq, full_occ, own_occ) &
+    Bitboard pinner = bboard::rook_xray_attacks(king_sq, full_occ, own_occ) &
                       (pos.get_bitboard(opp_color, ROOK) | queen_occ);
     Bitboard pinner_acc = pinner;
     while (pinner) {
-        Square sq = bb::bitscan_fwd(pinner);
-        pinned |= bb::blocker(sq, king_sq, full_occ) & own_occ;
+        Square sq = bboard::bitscan_fwd(pinner);
+        pinned |= bboard::blocker(sq, king_sq, full_occ) & own_occ;
         pinner &= pinner - 1;
     }
-    pinner = bb::bishop_xray_attacks(king_sq, full_occ, own_occ) &
+    pinner = bboard::bishop_xray_attacks(king_sq, full_occ, own_occ) &
              (pos.get_bitboard(opp_color, BISHOP) | queen_occ);
     pinner_acc |= pinner;
 
     while (pinner) {
-        Square sq = bb::bitscan_fwd(pinner);
-        pinned |= bb::blocker(sq, king_sq, full_occ) & own_occ;
+        Square sq = bboard::bitscan_fwd(pinner);
+        pinned |= bboard::blocker(sq, king_sq, full_occ) & own_occ;
         pinner &= pinner - 1;
     }
 
@@ -41,8 +41,9 @@ Bitboard absolute_pins(const Position& pos, Color pinned_color,
 
 void add_moves(vector<Move>& moves, Square src, Bitboard tgts) {
     while (tgts != 0ULL) {
-        Square sq = bb::bitscan_fwd(tgts);
-        moves.push_back(create_move(sq, src, NORMAL_MOVE, KING));
+        Square sq = bboard::bitscan_fwd(tgts);
+        Move tmp = create_normal_move(sq, src);
+        moves.push_back(tmp);
         tgts &= ~mask_square(sq);
     }
 }
@@ -135,18 +136,19 @@ endfunc
 vector<Move> gen_legal_moves(const Position& pos) {
     // TODO pawns
     // TODO castling
+    // TODO promotion
     Color atk_c = pos.get_side_to_move();
     Color def_c = opposite_color(atk_c);
     Bitboard atk_occ = pos.get_color_bitboard(atk_c);
     Bitboard def_occ = pos.get_color_bitboard(def_c);
     Bitboard all_occ = atk_occ | def_occ;
 
-    Square king_sq = bb::bitscan_fwd(pos.get_bitboard(atk_c, KING));
+    Square king_sq = bboard::bitscan_fwd(pos.get_bitboard(atk_c, KING));
     Bitboard checks = pos.get_attackers(king_sq, def_c);
     int n_checks = popcount(checks);
 
     Bitboard def_attacks = pos.get_attack_mask(def_c);
-    Bitboard king_attacks = bb::king_attacks(king_sq) & ~def_attacks & ~atk_occ;
+    Bitboard king_attacks = bboard::king_attacks(king_sq) & ~def_attacks & ~atk_occ;
 
     vector<Move> moves;
     add_moves(moves, king_sq, king_attacks);  // add king moves regardless
@@ -160,8 +162,8 @@ vector<Move> gen_legal_moves(const Position& pos) {
         Bitboard free_knights = pos.get_bitboard(atk_c, KNIGHT) & ~pinned;
         // knights
         while (free_knights != 0ULL) {
-            Square sq = bb::bitscan_fwd(free_knights);
-            add_moves(moves, sq, bb::knight_attacks(sq) & ~atk_occ);
+            Square sq = bboard::bitscan_fwd(free_knights);
+            add_moves(moves, sq, bboard::knight_attacks(sq) & ~atk_occ);
             free_knights &= ~mask_square(sq);
         }
 
@@ -170,18 +172,18 @@ vector<Move> gen_legal_moves(const Position& pos) {
         Bitboard free_bishops = bishops & ~pinned;
         Bitboard pinned_bishops = bishops & pinned;
         while (free_bishops != 0ULL) {
-            Square sq = bb::bitscan_fwd(free_bishops);
-            add_moves(moves, sq, bb::bishop_attacks(sq, all_occ));
+            Square sq = bboard::bitscan_fwd(free_bishops);
+            add_moves(moves, sq, bboard::bishop_attacks(sq, all_occ));
             free_bishops &= ~mask_square(sq);
         }
 
-        Bitboard kb_atk = bb::bishop_attacks(king_sq, 0ULL);
+        Bitboard kb_atk = bboard::bishop_attacks(king_sq, 0ULL);
         while (pinned_bishops != 0ULL) {
-            Square sq = bb::bitscan_fwd(pinned_bishops);
+            Square sq = bboard::bitscan_fwd(pinned_bishops);
             if (!same_line(sq, king_sq)) {
                 // on same diagonal. Bishop can move along common diagonal
                 // between self and king
-                add_moves(moves, sq, bb::bishop_attacks(sq, all_occ) & kb_atk);
+                add_moves(moves, sq, bboard::bishop_attacks(sq, all_occ) & kb_atk);
             }
             pinned_bishops &= ~mask_square(sq);
         }
@@ -191,18 +193,18 @@ vector<Move> gen_legal_moves(const Position& pos) {
         Bitboard free_rooks = rooks & ~pinned;
         Bitboard pinned_rooks = rooks & pinned;
         while (free_rooks != 0ULL) {
-            Square sq = bb::bitscan_fwd(free_rooks);
-            add_moves(moves, sq, bb::rook_attacks(sq, all_occ));
+            Square sq = bboard::bitscan_fwd(free_rooks);
+            add_moves(moves, sq, bboard::rook_attacks(sq, all_occ));
             free_rooks &= ~mask_square(sq);
         }
 
-        Bitboard kr_atk = bb::rook_attacks(king_sq, 0ULL);
+        Bitboard kr_atk = bboard::rook_attacks(king_sq, 0ULL);
         while (pinned_rooks != 0ULL) {
-            Square sq = bb::bitscan_fwd(pinned_rooks);
+            Square sq = bboard::bitscan_fwd(pinned_rooks);
             if (same_line(sq, king_sq)) {
                 // on same line. Rooks can move along common line
                 // between self and king
-                add_moves(moves, sq, bb::rook_attacks(sq, all_occ) & kr_atk);
+                add_moves(moves, sq, bboard::rook_attacks(sq, all_occ) & kr_atk);
             }
             pinned_rooks &= ~mask_square(sq);
         }
@@ -211,19 +213,19 @@ vector<Move> gen_legal_moves(const Position& pos) {
         Bitboard free_queens = queens & ~pinned;
         Bitboard pinned_queens = queens & pinned;
         while (free_queens != 0ULL) {
-            Square sq = bb::bitscan_fwd(free_queens);
-            add_moves(moves, sq, bb::queen_attacks(sq, all_occ));
+            Square sq = bboard::bitscan_fwd(free_queens);
+            add_moves(moves, sq, bboard::queen_attacks(sq, all_occ));
             free_queens &= ~mask_square(sq);
         }
 
         while (pinned_queens != 0ULL) {
-            Square sq = bb::bitscan_fwd(pinned_queens);
+            Square sq = bboard::bitscan_fwd(pinned_queens);
             if (same_line(sq, king_sq)) {
                 // pinned like a rook
-                add_moves(moves, sq, bb::rook_attacks(sq, all_occ) & kr_atk);
+                add_moves(moves, sq, bboard::rook_attacks(sq, all_occ) & kr_atk);
             } else {
                 // pinned like a bishop
-                add_moves(moves, sq, bb::bishop_attacks(sq, all_occ) & kb_atk);
+                add_moves(moves, sq, bboard::bishop_attacks(sq, all_occ) & kb_atk);
             }
             pinned_queens &= ~mask_square(sq);
         }

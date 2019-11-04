@@ -1,10 +1,14 @@
 #include <cassert>
 
+ // TODO for debug; remove this
+#include <iostream>
+#include "human.h"
+
 #include "bitboard.h"
 #include "movegen.h"
 
 int main(int argc, char* argv[]) {
-    bb::initialize();
+    bboard::initialize();
     test_magics();
     printf("Done.\n");
 
@@ -34,20 +38,20 @@ int main(int argc, char* argv[]) {
         "........"
         "........";
     Position pos1(board1, BLACK, cstate);
-    Square king_sq = bb::bitscan_fwd(pos1.get_bitboard(WHITE, KING));
+    Square king_sq = bboard::bitscan_fwd(pos1.get_bitboard(WHITE, KING));
     test_get_attackers(pos1, king_sq, BLACK);
 
     // test create move
     Square target = 33;
     Square source = 1;
-    MoveType mt = CASTLING_MOVE;
-    PieceType pt = QUEEN;
-    Move mv = create_move(target, source, mt, pt);
+    // MoveType mt = NORMAL_MOVE;
+    // PieceType pt = QUEEN;
+    Move mv = create_normal_move(target, source);
     printf("Testing create move...\n");
     assert(move_source(mv) == source);
     assert(move_target(mv) == target);
-    assert(move_type(mv) == mt);
-    assert(move_promotion(mv) == pt);
+    assert(move_type(mv) == NORMAL_MOVE);
+    // assert(move_promotion(mv) == pt);
     printf("Done.\n");
 
     printf("Testing movegen - 0 checks...\n");
@@ -58,11 +62,15 @@ int main(int argc, char* argv[]) {
         "........"
         "........"
         "........"
-        "R....nk."
+        ".....Nk."
         "........";
     Position pos2(board2, WHITE, cstate);
     std::vector<Move> moves = gen_legal_moves(pos2);
-    printf("Found %zd legal moves\n", moves.size());
+    printf("Found %zd legal moves:\n", moves.size());
+    for (Move mv: moves) {
+        // assuming no check or mate
+        std::cout << human::pretty_move(mv, moves, pos2, false, false) << std::endl;
+    }
     printf("Done.\n");
     
     printf("All done.\n");
