@@ -3,6 +3,7 @@
 #include <string>
 
 #include "types.h"
+#include "utils.h"
 
 namespace bboard {
 
@@ -18,7 +19,7 @@ constexpr int B_TABLE_SZ = 5248;
 constexpr int R_TABLE_SZ = 102400;
 
 // for bitscan
-const extern Square debruijn_table[64];
+const extern uint8_t debruijn_table[64];
 
 const extern Bitboard DEBRUIJN;
 // magic bitboard database for bishops
@@ -37,7 +38,7 @@ std::string repr(Bitboard bitboard);
 
 // return the index of the least significant set bit
 inline Square bitscan_fwd(Bitboard board) {
-    return debruijn_table[((board & -board) * DEBRUIJN) >> 58];
+    return to_square(debruijn_table[((board & -board) * DEBRUIJN) >> 58]);
 }
 
 // return whether there is exactly one bit set
@@ -59,6 +60,12 @@ inline Bitboard queen_attacks(Square sq, Bitboard occ) {
 
 inline Bitboard pawn_attacks(Square sq, Color atk_color) {
     return p_attack_table[atk_color][sq];
+}
+
+inline Bitboard pawn_pushes(Square sq, Color atk_color) {
+    int d_rank = 1 - static_cast<int>(atk_color) * 2;
+    // return 0 if promotion
+    return mask_square(to_square(sq + d_rank * 8)) & ~PROMOTION_RANKS;
 }
 
 inline Bitboard knight_attacks(Square sq) {

@@ -22,7 +22,7 @@ Bitboard bboard::n_attack_table[64];
 Bitboard bboard::k_attack_table[64];
 
 // for bitscan
-const Square bboard::debruijn_table[64] =
+const uint8_t bboard::debruijn_table[64] =
     {
         0, 1, 2, 53, 3, 7, 54, 27,
         4, 38, 41, 8, 34, 55, 48, 28,
@@ -43,8 +43,8 @@ a1 corresponds to the LSB and h8 to the MSB. a2 is the second-LSB.
 namespace {
 
 // compute attacks for an occupancy the slow way
-constexpr Bitboard sliding_attacks(const Square& origin, const Bitboard& occ,
-                                Direction directions[]) {
+Bitboard sliding_attacks(const Square& origin, const Bitboard& occ,
+                                   Direction directions[]) {
     Bitboard attacks = 0x0ULL;
     Bitboard last_and = 0x0ULL;
     for (int i = 0; i < 4; i++) {
@@ -63,7 +63,7 @@ constexpr Bitboard sliding_attacks(const Square& origin, const Bitboard& occ,
     return attacks;
 }
 
-constexpr void b_init_occupancies() {
+void b_init_occupancies() {
     // initialize occupancies
     for (Square sq = SQ_A1; sq <= SQ_H8; sq++) {
         // mask is the sliding attacks of sq on an empty board
@@ -81,7 +81,7 @@ constexpr void b_init_occupancies() {
     }
 }
 
-constexpr void r_init_occupancies() {
+void r_init_occupancies() {
     // initialize occupancies
     for (Square sq = SQ_A1; sq <= SQ_H8; sq++) {
         // mask is the sliding attacks of sq on an empty board
@@ -112,7 +112,7 @@ void gen_magics(bboard::MagicInfo magics[], Bitboard table[],
     Bitboard reference[4096];  // 2^12, largest size of occ set of any square
     Bitboard occupancy[4096];
     unsigned long long seed = 322;  // TODO find good seeds
-    int ord = 0;  // ordinality; used as index for reference[]
+    int ord = 0;                    // ordinality; used as index for reference[]
     for (Square sq = SQ_A1; sq <= SQ_H8; sq++) {
         Bitboard rel_occupancy = magics[sq].occupancy_mask;
         // stores the current subset of occupancy
@@ -190,6 +190,7 @@ void gen_magics(bboard::MagicInfo magics[], Bitboard table[],
     }
 }
 
+#if 0
 // temporary function for faster debugging
 Bitboard from_str(string repr) {
     Bitboard ret = 0x0ULL;
@@ -202,6 +203,7 @@ Bitboard from_str(string repr) {
 
     return ret;
 }
+#endif
 
 void init_magic(void) {
     b_init_occupancies();
@@ -220,6 +222,8 @@ void init_attack_tables(void) {
     // pawns
     for (Color c : colors) {
         int d_rank = c == WHITE ? 1 : -1;
+        // actually we can omit the last row for each color since a pawn cannot
+        // possibly be there.
         for (Square sq = SQ_A1; sq <= SQ_H8; sq++) {
             mask = 0ULL;
 
@@ -236,6 +240,17 @@ void init_attack_tables(void) {
             bboard::p_attack_table[(int)c][sq] = mask;
         }
     }
+
+    // // pawn first pushes (2 squares)
+    // for (Square sq = SQ_A2; sq <= SQ_H2; sq++) {
+    //     // move two ranks up
+    //     bboard::p_push_table[(int)WHITE][sq] |= mask_square(to_square(sq + 16));
+    // }
+
+    // for (Square sq = SQ_A7; sq <= SQ_H7; sq++) {
+    //     // move two ranks down
+    //     bboard::p_push_table[(int)BLACK][sq] |= mask_square(to_square(sq - 16));
+    // }
 
     // knights
     for (Square sq = SQ_A1; sq <= SQ_H8; sq++) {
@@ -273,7 +288,7 @@ void init_attack_tables(void) {
             }
         }
 
-        mask &= ~mask_square(sq); // unset bit at offset (0, 0)
+        mask &= ~mask_square(sq);  // unset bit at offset (0, 0)
 
         bboard::k_attack_table[sq] = mask;
     }
@@ -303,7 +318,7 @@ void test_magics() {
         do {
             Bitboard att = m.table[m.get_index(n)];
             if (sliding_attacks(sq, n, b_directions) != att) {
-                printf("assertion failed\n");
+                printf("Assertion failed for test_magic\n");
                 return;
             }
             n = (n - occ) & occ;

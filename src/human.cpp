@@ -4,9 +4,7 @@
 #include "utils.h"
 
 // Given a target square for castling, return whether it is kingside.
-inline bool is_kingside_castle(Square target_sq) {
-    return target_sq & 4;
-}
+inline bool is_kingside_castle(Square target_sq) { return target_sq & 4; }
 
 inline char piece_char(PieceType piece) {
     switch (piece) {
@@ -25,26 +23,31 @@ inline char piece_char(PieceType piece) {
     }
 }
 
-string human::pretty_move(Move mv, const std::vector<Move>& legal_moves, const Position& pos, bool checking, bool mating) {
-    char buf[8] = "O-O\0\0\0\0"; // kingside castle by default
+string human::pretty_move(Move mv, const std::vector<Move>& legal_moves,
+                          const Position& pos, bool checking, bool mating) {
+    char buf[8] = "O-\0\0\0\0\0";  // kingside castle by default
     int bufidx = 0;
     MoveType mt = move_type(mv);
     Square tgt_sq = move_target(mv);
-    if (mt == NORMAL_MOVE || mt == EN_PASSANT || mt == PROMOTION) {
+    if (mt == NORMAL_MOVE || mt == ENPASSANT || mt == PROMOTION) {
+        bool is_capture = pos.get_all_bitboard() & mask_square(tgt_sq);
         Color color;
         PieceType piece;
         Square src_sq = move_source(mv);
         bool got = pos.get_piece_at(src_sq, color, piece);
         assert(got);
         if (piece == PAWN) {
-            buf[bufidx++] = file_char(sq_file(src_sq));
+            if (is_capture) {
+                buf[bufidx++] = file_char(sq_file(src_sq));
+            }
         } else {
             buf[bufidx++] = piece_char(piece);
         }
 
         Bitboard occ = pos.get_bitboard(color, piece);
         if (!bboard::one_bit(occ)) {
-            char ambiguity = 0; // 1 if some other piece is on the same rank, 2 if same file, 3 if both
+            char ambiguity = 0;  // 1 if some other piece is on the same rank, 2
+                                 // if same file, 3 if both
             for (const Move& other_mv : legal_moves) {
                 if (other_mv == mv) continue;
 
@@ -69,7 +72,6 @@ string human::pretty_move(Move mv, const std::vector<Move>& legal_moves, const P
         }
 
         // Add 'x' if is a capture
-        bool is_capture = pos.get_all_bitboard() & mask_square(tgt_sq);
         buf[bufidx] = 'x';
         bufidx += is_capture;
 
@@ -90,6 +92,7 @@ string human::pretty_move(Move mv, const std::vector<Move>& legal_moves, const P
             buf[bufidx++] = '#';
         }
     } else {
+        buf[2] = 'O';
         bool queenside = !is_kingside_castle(tgt_sq);
         buf[3] = queenside * '-';
         buf[4] = queenside * 'O';

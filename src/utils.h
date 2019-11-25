@@ -4,33 +4,35 @@
 
 #include <random>
 #include <string>
+#include <cassert>
 
-constexpr int sq_rank(Square sq) { return sq / 8; }
-constexpr int sq_file(Square sq) { return sq % 8; }
+bool is_slider_table[]{0, 0, 0, 1, 1, 1, 0, 0};
 
-constexpr bool move_square(Square& sq, int d_rank, int d_file) {
-    int rank = sq_rank(sq) + d_rank;
-    int file = sq_file(sq) + d_file;
+inline int sq_rank(Square sq) { return sq / 8; }
+inline int sq_file(Square sq) { return sq % 8; }
 
-    if (rank < 0 || rank >= 8 || file < 0 || file >= 8) {
-        return false;
-    }
-
-    sq = rank * 8 + file;
-    return true;
+inline Square to_square(uint8_t val) {
+    return static_cast<Square>(val);
 }
 
-constexpr bool move_square(Square& sq, const Direction& dir) {
+bool move_square(Square& sq, int d_rank, int d_file);
+
+inline bool move_square(Square& sq, const Direction& dir) {
     return move_square(sq, dir.d_rank, dir.d_file);
 }
 
-constexpr Bitboard mask_square(const Square& square) {
+inline Bitboard mask_square(const Square& square) {
     return 1ULL << square;
 }
 
-constexpr int popcount(unsigned long long n) {
+inline int popcount(unsigned long long n) {
     return __builtin_popcount((unsigned int)(n)) +
            __builtin_popcount((unsigned int)(n >> 32));
+}
+
+inline bool is_slider(PieceType pt) {
+    assert(pt < (int)N_PIECE_TYPES);
+    return is_slider_table[(int)pt];
 }
 
 // pseudorandom number generator
@@ -57,7 +59,7 @@ class PRNG {
     }
 };
 
-constexpr Color opposite_color(Color c) {
+inline Color opposite_color(Color c) {
     return (Color)((int)N_COLORS - 1 - (int)c);
 }
 

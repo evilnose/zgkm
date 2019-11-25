@@ -6,6 +6,7 @@
 
 #include "bitboard.h"
 #include "movegen.h"
+#include "utils.h"
 
 int main(int argc, char* argv[]) {
     bboard::initialize();
@@ -42,8 +43,8 @@ int main(int argc, char* argv[]) {
     test_get_attackers(pos1, king_sq, BLACK);
 
     // test create move
-    Square target = 33;
-    Square source = 1;
+    Square target = to_square(33);
+    Square source = to_square(1);
     // MoveType mt = NORMAL_MOVE;
     // PieceType pt = QUEEN;
     Move mv = create_normal_move(target, source);
@@ -54,16 +55,16 @@ int main(int argc, char* argv[]) {
     // assert(move_promotion(mv) == pt);
     printf("Done.\n");
 
-    printf("Testing movegen - 0 checks...\n");
+    printf("Testing movegen(0 checks)...\n");
     const char* board2 = 
         "........"
         "...K..P."
         "........"
+        "...B...."
+        "......R."
         "........"
-        "........"
-        "........"
-        ".....Nk."
-        "........";
+        ".....Np."
+        "....k...";
     Position pos2(board2, WHITE, cstate);
     std::vector<Move> moves = gen_legal_moves(pos2);
     printf("Found %zd legal moves:\n", moves.size());

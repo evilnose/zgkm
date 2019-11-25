@@ -2,7 +2,8 @@ CC = g++
 SDIR = src
 ODIR = obj
 TDIR = test
-SOURCES = bitboard.cpp main.cpp movegen.cpp position.cpp types.cpp utils.cpp human.cpp
+SOURCES = bitboard.cpp main.cpp movegen.cpp position.cpp types.cpp utils.cpp \
+		  human.cpp
 _TESTS = test_bitboard.cpp
 TESTS = $(patsubst %,$(_TESTS)/%,$(TDIR))
 _OBJECTS = $(SOURCES:.cpp=.o)
@@ -27,7 +28,7 @@ $(shell echo nodebug > .buildmode)
 endif
 endif
 
-OUT = out/a.exe # TODO
+OUT = out/chess 
 
 .PHONY: test clean
 

@@ -8,12 +8,24 @@ string repr(Bitboard bitboard) {
         ret[i * 9 + 8] = '\n';
     }
 
-    for (int index = 0; index < 64; index++) {
-        int rank = sq_rank(index);
-        int file = sq_file(index);
-        char ch = ((1ULL << index) & bitboard) ? '1' : '0';
+    for (Square sq = SQ_A1; sq <= SQ_H8; sq++) {
+        int rank = sq_rank(sq);
+        int file = sq_file(sq);
+        char ch = ((1ULL << sq) & bitboard) ? '1' : '0';
         ret[(7 - rank) * 9 + file] = ch;
     }
     ret[72] = '\0';
     return string(ret);
+}
+
+bool move_square(Square& sq, int d_rank, int d_file) {
+    int rank = sq_rank(sq) + d_rank;
+    int file = sq_file(sq) + d_file;
+
+    if (rank < 0 || rank >= 8 || file < 0 || file >= 8) {
+        return false;
+    }
+
+    sq = to_square(rank * 8 + file);
+    return true;
 }

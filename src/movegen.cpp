@@ -2,6 +2,7 @@
 #include "bitboard.h"
 #include "utils.h"
 
+#include <cassert>
 #include <iostream>
 
 using std::vector;
@@ -39,13 +40,18 @@ Bitboard absolute_pins(const Position& pos, Color pinned_color,
     return pinned;
 }
 
-void add_moves(vector<Move>& moves, Square src, Bitboard tgts) {
+inline void add_moves(vector<Move>& moves, Square src, Bitboard tgts) {
     while (tgts != 0ULL) {
         Square sq = bboard::bitscan_fwd(tgts);
         Move tmp = create_normal_move(sq, src);
         moves.push_back(tmp);
         tgts &= ~mask_square(sq);
     }
+}
+
+inline void add_move(vector<Move>& moves, Square src, Square tgt) {
+    Move tmp = create_normal_move(tgt, src);
+    moves.push_back(tmp);
 }
 
 // returns whether (squares are on same rank OR squares are on same file)
@@ -59,10 +65,8 @@ void test_absolute_pins(Position& position) {
     Bitboard pinned = absolute_pins(position, BLACK, pinner);
     std::string pinned_repr = repr(pinned);
     std::string pinner_repr = repr(pinner);
-    std::cout << "Pinned:\n"
-              << pinned_repr << std::endl;
-    std::cout << "Pinner:\n"
-              << pinner_repr << std::endl;
+    std::cout << "Pinned:\n" << pinned_repr << std::endl;
+    std::cout << "Pinner:\n" << pinner_repr << std::endl;
 }
 
 /*
@@ -92,9 +96,8 @@ function main_movegen:
             else:
                 # bishop can't move
                 continue
-        
+
         extract_move_mask(bishop_mask, ...)
-        
 
     for each my_rook:
         rook_mask = ...
@@ -106,7 +109,6 @@ function main_movegen:
                 continue
 
         extract_move_mask(rook_mask, ...)
-            
 
     for each my_queen:
         queen_mask = ...
@@ -144,11 +146,12 @@ vector<Move> gen_legal_moves(const Position& pos) {
     Bitboard all_occ = atk_occ | def_occ;
 
     Square king_sq = bboard::bitscan_fwd(pos.get_bitboard(atk_c, KING));
-    Bitboard checks = pos.get_attackers(king_sq, def_c);
-    int n_checks = popcount(checks);
+    Bitboard checkers = pos.get_attackers(king_sq, def_c);
+    int n_checks = popcount(checkers);
 
     Bitboard def_attacks = pos.get_attack_mask(def_c);
-    Bitboard king_attacks = bboard::king_attacks(king_sq) & ~def_attacks & ~atk_occ;
+    Bitboard king_attacks =
+        bboard::king_attacks(king_sq) & ~def_attacks & ~atk_occ;
 
     vector<Move> moves;
     add_moves(moves, king_sq, king_attacks);  // add king moves regardless
@@ -158,9 +161,66 @@ vector<Move> gen_legal_moves(const Position& pos) {
         Bitboard pinned = absolute_pins(pos, atk_c, pinner);
 
         // pawns
+        Bitboard pawns = pos.get_bitboard(atk_c, PAWN);
+        Bitboard free_pawns = pawns & ~pinned;
+        Bitboard pinned_pawns = pawns & pinned;
+        Bitboard special_rank = atk_c == WHITE ? RANK_C : RANK_F;
+        while (free_pawns != 0ULL) {
+            Square sq = bboard::bitscan_fwd(free_pawns);
 
-        Bitboard free_knights = pos.get_bitboard(atk_c, KNIGHT) & ~pinned;
+            Bitboard pawn_mask = bboard::pawn_pushes(sq, atk_c) & ~all_occ;
+
+            // add moves for starting pushes (2 squares). Can only push 2 ahead
+            // if pawn can push to rank C/F first (determined by
+            // pawn_mask & special_rank).
+            // left shift by 8 if attacker is white, otherwise right shift by 8
+            pawn_mask |= (pawn_mask & special_rank) << ((atk_c == WHITE) * 8);
+            pawn_mask |= (pawn_mask & special_rank) >> ((atk_c == BLACK) * 8);
+
+            // Note need to (& ~all_occ) again since 2 square pushes
+            // can be blocked by pieces on the D/E rank.
+            pawn_mask &= ~all_occ;
+
+            // add capture moves
+            pawn_mask |= bboard::pawn_attacks(sq, atk_c) &
+                         (def_occ | pos.get_enpassant());
+
+            add_moves(moves, sq, pawn_mask);
+
+            free_pawns &= ~mask_square(sq);
+        }
+
+        while (pinned_pawns != 0ULL) {
+            Square sq = bboard::bitscan_fwd(pinned_pawns);
+            int d_rank = sq_rank(sq) - sq_rank(king_sq);
+            if (d_rank != 0) {
+                int d_file = sq_file(sq) - sq_file(king_sq);
+                if (d_file == 0) {
+                    // pawn pushes
+                    Bitboard pawn_mask =
+                        bboard::pawn_pushes(sq, atk_c) & ~all_occ;
+
+                    pawn_mask |=
+                        ((pawn_mask & special_rank) << ((atk_c == WHITE) << 3));
+                    pawn_mask |=
+                        ((pawn_mask & special_rank) >> ((atk_c == BLACK) << 3));
+
+                    add_moves(moves, sq, pawn_mask & ~all_occ);
+                } else {
+                    // one potential pawn capture
+                    Square t_sq = sq;
+                    move_square(t_sq, d_rank, d_file);
+                    add_moves(moves, sq,
+                              mask_square(t_sq) &
+                                  bboard::pawn_attacks(sq, atk_c) &
+                                  (def_occ | pos.get_enpassant()));
+                }
+            }  // else if on same rank, pawn can't move
+            pinned_pawns &= ~mask_square(sq);
+        }
+
         // knights
+        Bitboard free_knights = pos.get_bitboard(atk_c, KNIGHT) & ~pinned;
         while (free_knights != 0ULL) {
             Square sq = bboard::bitscan_fwd(free_knights);
             add_moves(moves, sq, bboard::knight_attacks(sq) & ~atk_occ);
@@ -183,7 +243,8 @@ vector<Move> gen_legal_moves(const Position& pos) {
             if (!same_line(sq, king_sq)) {
                 // on same diagonal. Bishop can move along common diagonal
                 // between self and king
-                add_moves(moves, sq, bboard::bishop_attacks(sq, all_occ) & kb_atk);
+                add_moves(moves, sq,
+                          bboard::bishop_attacks(sq, all_occ) & kb_atk);
             }
             pinned_bishops &= ~mask_square(sq);
         }
@@ -204,7 +265,8 @@ vector<Move> gen_legal_moves(const Position& pos) {
             if (same_line(sq, king_sq)) {
                 // on same line. Rooks can move along common line
                 // between self and king
-                add_moves(moves, sq, bboard::rook_attacks(sq, all_occ) & kr_atk);
+                add_moves(moves, sq,
+                          bboard::rook_attacks(sq, all_occ) & kr_atk);
             }
             pinned_rooks &= ~mask_square(sq);
         }
@@ -222,19 +284,52 @@ vector<Move> gen_legal_moves(const Position& pos) {
             Square sq = bboard::bitscan_fwd(pinned_queens);
             if (same_line(sq, king_sq)) {
                 // pinned like a rook
-                add_moves(moves, sq, bboard::rook_attacks(sq, all_occ) & kr_atk);
+                add_moves(moves, sq,
+                          bboard::rook_attacks(sq, all_occ) & kr_atk);
             } else {
                 // pinned like a bishop
-                add_moves(moves, sq, bboard::bishop_attacks(sq, all_occ) & kb_atk);
+                add_moves(moves, sq,
+                          bboard::bishop_attacks(sq, all_occ) & kb_atk);
             }
             pinned_queens &= ~mask_square(sq);
         }
-    } else if (n_checks == 2) {
-        // only king moves are legal
-        // TODO remove this case if redundant
-    }
-	return moves;
-    // TODO add n_checks == 1
+    } else if (n_checks == 1) {
+        Color dummy_c;
+        PieceType ptype;
+        Square checker_sq = bboard::bitscan_fwd(checkers);
+        pos.get_piece_at(checker_sq, dummy_c, ptype);
+        assert(dummy_c == def_c);
+        // mask for BOTH blocking and capturing
+        Bitboard block_mask = checkers;
+        int d_rank, d_file;
+        if (is_slider(ptype)) {
+            switch (ptype) {
+                case BISHOP:
+                    block_mask |= bboard::bishop_attacks(king_sq, all_occ) &
+                                  bboard::bishop_attacks(checker_sq, all_occ);
+                    break;
+                case ROOK:
+                    block_mask = bboard::rook_attacks(king_sq, all_occ) &
+                                 bboard::rook_attacks(checker_sq, all_occ);
+                    break;
+                case QUEEN: // use no-branch-if?
+                    if (same_line(king_sq, checker_sq)) {
+                        block_mask |= bboard::rook_attacks(king_sq, all_occ) &
+                                      bboard::rook_attacks(checker_sq, all_occ);
+                    } else {
+                        block_mask |=
+                            bboard::bishop_attacks(king_sq, all_occ) &
+                            bboard::bishop_attacks(checker_sq, all_occ);
+                    }
+                    break;
+                default:
+                    assert(false);
+                    break;
+            }
+        }
+
+    }  // else only king moves are legal, and nothing more needs to be done
+    return moves;
 }
 
 // vector<Move> gen_king_moves(const Position& position) {

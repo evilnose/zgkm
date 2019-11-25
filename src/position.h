@@ -33,14 +33,15 @@ class Position {
     */
     Position(std::string ascii, Color side2move, const CastleState& cstate);
 
-    bool castle_allowed(CastleState cs);
+    inline bool castle_allowed(CastleState cs) const {
+        return cs & ~castle_state;
+    }
 
-    // Note: does not modify this Position object and instead returns a new one
-    Position make_move(const Move&) const;
+    void apply_move(const Move&);
     
-    std::string to_ascii() const;
+    // std::string to_ascii() const;
 
-    std::string serialize() const;
+    // std::string serialize() const;
 
     inline Bitboard get_piece_bitboard(PieceType p) const {
         return piece_bitboards[p];
@@ -69,11 +70,18 @@ class Position {
         return side_to_move;
     }
 
+    inline bool get_enpassant() const {
+        return enpassant_mask;
+    };
+
    private:
     Bitboard piece_bitboards[N_PIECE_TYPES];
     Bitboard color_bitboards[N_COLORS];
     Color side_to_move;
     CastleState castle_state;
+    // zero if no en-passant last ply, else the capture mask of en-passant
+    // e.g. last ply a2-a4, enpassant would hold occupancy of a3.
+    Bitboard enpassant_mask;
 };
 
 void test_get_attackers(Position& pos, Square sq, Color atk_color);
