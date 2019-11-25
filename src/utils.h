@@ -6,7 +6,7 @@
 #include <string>
 #include <cassert>
 
-bool is_slider_table[]{0, 0, 0, 1, 1, 1, 0, 0};
+static bool is_slider_table[]{0, 0, 0, 1, 1, 1, 0, 0};
 
 inline int sq_rank(Square sq) { return sq / 8; }
 inline int sq_file(Square sq) { return sq % 8; }
@@ -34,6 +34,9 @@ inline bool is_slider(PieceType pt) {
     assert(pt < (int)N_PIECE_TYPES);
     return is_slider_table[(int)pt];
 }
+
+// /* read from file and trim all whitespace; output to buf */
+void read_and_trim(std::string fname, char buf[]);
 
 // pseudorandom number generator
 class PRNG {

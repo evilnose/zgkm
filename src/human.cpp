@@ -30,7 +30,8 @@ string human::pretty_move(Move mv, const std::vector<Move>& legal_moves,
     MoveType mt = move_type(mv);
     Square tgt_sq = move_target(mv);
     if (mt == NORMAL_MOVE || mt == ENPASSANT || mt == PROMOTION) {
-        bool is_capture = pos.get_all_bitboard() & mask_square(tgt_sq);
+        bool is_capture =
+            (pos.get_all_bitboard() & mask_square(tgt_sq)) || mt == ENPASSANT;
         Color color;
         PieceType piece;
         Square src_sq = move_source(mv);

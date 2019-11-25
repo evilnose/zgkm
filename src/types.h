@@ -117,13 +117,10 @@ inline PieceType move_promotion(Move mv) {
     return (PieceType)((mv & MOVE_PROMOTION_MASK) + 2);
 }
 
-/*
-inline Move create_move(Square tar, Square src, MoveType type,
-                           PieceType promotion) {
-    return ((Move)piece - 2) | (((Move)promotion) << 2) | ((Move)src << 4) |
+inline Move create_enpassant(Square tar, Square src, MoveType type) {
+    return (((Move)ENPASSANT) << 2) | ((Move)src << 4) |
            ((Move)tar << 10);
 }
-*/
 
 inline Move create_normal_move(Square tar, Square src) {
     return (((Move)NORMAL_MOVE) << 2) | ((Move)src << 4) | ((Move)tar << 10);

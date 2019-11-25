@@ -49,9 +49,8 @@ inline void add_moves(vector<Move>& moves, Square src, Bitboard tgts) {
     }
 }
 
-inline void add_move(vector<Move>& moves, Square src, Square tgt) {
-    Move tmp = create_normal_move(tgt, src);
-    moves.push_back(tmp);
+inline void add_enpassant(vector<Move>& moves, Square src, Square tgt) {
+    moves.push_back(create_enpassant(tgt, src, ENPASSANT));
 }
 
 // returns whether (squares are on same rank OR squares are on same file)
@@ -136,9 +135,9 @@ endfunc
 
 */
 vector<Move> gen_legal_moves(const Position& pos) {
-    // TODO pawns
     // TODO castling
     // TODO promotion
+    // TODO weird enpassant pin
     Color atk_c = pos.get_side_to_move();
     Color def_c = opposite_color(atk_c);
     Bitboard atk_occ = pos.get_color_bitboard(atk_c);
@@ -152,6 +151,9 @@ vector<Move> gen_legal_moves(const Position& pos) {
     Bitboard def_attacks = pos.get_attack_mask(def_c);
     Bitboard king_attacks =
         bboard::king_attacks(king_sq) & ~def_attacks & ~atk_occ;
+
+    Bitboard enpassant = pos.get_enpassant();
+    Square enpassant_sq = bboard::bitscan_fwd(enpassant);
 
     vector<Move> moves;
     add_moves(moves, king_sq, king_attacks);  // add king moves regardless
@@ -181,11 +183,12 @@ vector<Move> gen_legal_moves(const Position& pos) {
             // can be blocked by pieces on the D/E rank.
             pawn_mask &= ~all_occ;
 
-            // add capture moves
-            pawn_mask |= bboard::pawn_attacks(sq, atk_c) &
-                         (def_occ | pos.get_enpassant());
+            add_moves(moves, sq,
+                      pawn_mask | (bboard::pawn_attacks(sq, atk_c) & def_occ));
 
-            add_moves(moves, sq, pawn_mask);
+            if (bboard::pawn_attacks(sq, atk_c) & enpassant) {
+                add_enpassant(moves, sq, enpassant_sq);
+            }
 
             free_pawns &= ~mask_square(sq);
         }
@@ -210,10 +213,12 @@ vector<Move> gen_legal_moves(const Position& pos) {
                     // one potential pawn capture
                     Square t_sq = sq;
                     move_square(t_sq, d_rank, d_file);
+                    Bitboard masked_tar = mask_square(t_sq);
                     add_moves(moves, sq,
-                              mask_square(t_sq) &
-                                  bboard::pawn_attacks(sq, atk_c) &
-                                  (def_occ | pos.get_enpassant()));
+                              masked_tar & bboard::pawn_attacks(sq, atk_c));
+                    if (masked_tar & enpassant) {
+                        add_enpassant(moves, sq, enpassant_sq);
+                    }
                 }
             }  // else if on same rank, pawn can't move
             pinned_pawns &= ~mask_square(sq);
@@ -301,7 +306,6 @@ vector<Move> gen_legal_moves(const Position& pos) {
         assert(dummy_c == def_c);
         // mask for BOTH blocking and capturing
         Bitboard block_mask = checkers;
-        int d_rank, d_file;
         if (is_slider(ptype)) {
             switch (ptype) {
                 case BISHOP:
@@ -312,7 +316,7 @@ vector<Move> gen_legal_moves(const Position& pos) {
                     block_mask = bboard::rook_attacks(king_sq, all_occ) &
                                  bboard::rook_attacks(checker_sq, all_occ);
                     break;
-                case QUEEN: // use no-branch-if?
+                case QUEEN:  // use no-branch-if?
                     if (same_line(king_sq, checker_sq)) {
                         block_mask |= bboard::rook_attacks(king_sq, all_occ) &
                                       bboard::rook_attacks(checker_sq, all_occ);
@@ -328,6 +332,76 @@ vector<Move> gen_legal_moves(const Position& pos) {
             }
         }
 
+        Bitboard pinner = 0ULL;
+        Bitboard pinned = absolute_pins(pos, atk_c, pinner);
+
+        // pawns
+        Bitboard free_pawns = pos.get_bitboard(atk_c, PAWN) & ~pinned;
+        Bitboard special_rank = atk_c == WHITE ? RANK_C : RANK_F;
+        while (free_pawns != 0ULL) {
+            Square sq = bboard::bitscan_fwd(free_pawns);
+
+            Bitboard pawn_mask = bboard::pawn_pushes(sq, atk_c) & ~all_occ;
+
+            // add moves for starting pushes (2 squares). Can only push 2 ahead
+            // if pawn can push to rank C/F first (determined by
+            // pawn_mask & special_rank).
+            // left shift by 8 if attacker is white, otherwise right shift by 8
+            pawn_mask |= (pawn_mask & special_rank) << ((atk_c == WHITE) * 8);
+            pawn_mask |= (pawn_mask & special_rank) >> ((atk_c == BLACK) * 8);
+
+            // Note need to (& ~all_occ) again since 2 square pushes
+            // can be blocked by pieces on the D/E rank.
+            pawn_mask &= ~all_occ;
+
+            // add capture moves
+            Bitboard pawn_attacks = bboard::pawn_attacks(sq, atk_c);
+
+            pawn_mask &= block_mask;
+
+            add_moves(moves, sq, (pawn_mask | pawn_attacks) & block_mask);
+
+            if (pawn_attacks & enpassant) {
+                add_enpassant(moves, sq, enpassant_sq);
+            }
+
+            free_pawns &= ~mask_square(sq);
+        }
+
+        // knights
+        Bitboard free_knights = pos.get_bitboard(atk_c, KNIGHT) & ~pinned;
+        while (free_knights != 0ULL) {
+            Square sq = bboard::bitscan_fwd(free_knights);
+            add_moves(moves, sq,
+                      bboard::knight_attacks(sq) & ~atk_occ & block_mask);
+            free_knights &= ~mask_square(sq);
+        }
+
+        // bishops
+        Bitboard free_bishops = pos.get_bitboard(atk_c, BISHOP) & ~pinned;
+        while (free_bishops != 0ULL) {
+            Square sq = bboard::bitscan_fwd(free_bishops);
+            add_moves(moves, sq,
+                      bboard::bishop_attacks(sq, all_occ) & block_mask);
+            free_bishops &= ~mask_square(sq);
+        }
+
+        // rooks
+        Bitboard free_rooks = pos.get_bitboard(atk_c, ROOK) & ~pinned;
+        while (free_rooks != 0ULL) {
+            Square sq = bboard::bitscan_fwd(free_rooks);
+            add_moves(moves, sq,
+                      bboard::rook_attacks(sq, all_occ) & block_mask);
+            free_rooks &= ~mask_square(sq);
+        }
+
+        Bitboard free_queens = pos.get_bitboard(atk_c, QUEEN) & ~pinned;
+        while (free_queens != 0ULL) {
+            Square sq = bboard::bitscan_fwd(free_queens);
+            add_moves(moves, sq,
+                      bboard::queen_attacks(sq, all_occ) & block_mask);
+            free_queens &= ~mask_square(sq);
+        }
     }  // else only king moves are legal, and nothing more needs to be done
     return moves;
 }

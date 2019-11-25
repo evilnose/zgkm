@@ -1,20 +1,37 @@
+
+#include "position.h"
+#include "movegen.h"
+#include "utils.h"
+
 #include <cassert>
 #include <cctype>
 
-#include "movegen.h"
-#include "position.h"
-#include "utils.h"
+#include <istream>
 
 using std::string;
 using std::vector;
 
-namespace {
-}  // namespace
+namespace {}  // namespace
 
-Position::Position(string ascii, Color side2move, const CastleState& cstate)
-    : piece_bitboards{}, color_bitboards{},
-      side_to_move(side2move), castle_state(cstate) {
+Position::Position()
+    : side_to_move(WHITE),
+      castle_state(init_cstate),
+      piece_bitboards{},
+      color_bitboards{},
+      enpassant_mask{} {}
+
+#include <iostream>
+void Position::load_inline_ascii(string ascii, Color side2move,
+                                 const CastleState& cstate,
+                                 int enpassant_file) {
     assert(ascii.length() == 64);
+    side_to_move = side2move;
+    castle_state = cstate;
+    if (enpassant_file != -1) {
+        int enp_rank = side2move == WHITE ? 7 - 2 : 2;
+        enpassant_mask = mask_square((Square)(8 * enp_rank + enpassant_file));
+    }
+
     for (int i = 0; i < 64; i++) {
         char lower = std::tolower(ascii[i]);
         Color color = lower == ascii[i] ? WHITE : BLACK;
@@ -81,7 +98,8 @@ Bitboard Position::get_attackers(Square target_sq, Color atk_color) const {
     mask |= attacks & queen_mask;
 
     // king
-    mask |= bboard::king_attacks(target_sq) & this->get_bitboard(atk_color, KING);
+    mask |=
+        bboard::king_attacks(target_sq) & this->get_bitboard(atk_color, KING);
 
     return mask;
 }
@@ -122,6 +140,10 @@ bool Position::get_piece_at(Square sq, Color& c_out, PieceType& p_out) const {
 
 Bitboard Position::get_attack_mask(Color col) const {
     Bitboard mask = 0ULL;
+    // remove king from occ so he doesn't block anything
+    Bitboard occ =
+        get_all_bitboard() & ~get_bitboard(opposite_color(col), KING);
+
     // pawns
     Bitboard pawns = get_bitboard(col, PAWN);
     while (pawns != 0ULL) {
@@ -137,8 +159,6 @@ Bitboard Position::get_attack_mask(Color col) const {
         mask |= bboard::knight_attacks(sq);
         knights &= ~mask_square(sq);
     }
-
-    Bitboard occ = get_all_bitboard();
 
     // bishops
     Bitboard bishops = get_bitboard(col, BISHOP);
@@ -175,6 +195,5 @@ Bitboard Position::get_attack_mask(Color col) const {
 #include <iostream>
 void test_get_attackers(Position& pos, Square sq, Color atk_color) {
     Bitboard attackers = pos.get_attackers(sq, atk_color);
-    std::cout << "attackers mask:\n"
-              << repr(attackers) << std::endl;
+    std::cout << "attackers mask:\n" << repr(attackers) << std::endl;
 }

@@ -7,16 +7,16 @@
 
 class Position {
    public:
-
     Position();
 
     Position(std::string serial);
-    
+
     /*
     Initialize board from ASCII representation.
     The ASCII string is 64 characters long. The first ASCII char corresponds to
     A8, and the last to H1. The chess piece at each position is denoted by:
     
+
     . if empty,
     p if a pawn,
     n if a knight,
@@ -25,20 +25,22 @@ class Position {
     q if a queen, and
     k if a king.
 
-    If the piece is black, the letter is capitalized, i.e. a black pawn is 
+    If the piece is black, the letter is capitalized, i.e. a black pawn is
     denoted by 'P'.
 
-    NOTE: This does not check for validity of the board, so make sure of that 
+    NOTE: This does not check for validity of the board, so make sure of that
     before calling it.
     */
-    Position(std::string ascii, Color side2move, const CastleState& cstate);
+    void load_inline_ascii(std::string ascii, Color side2move,
+                           const CastleState& cstate, int enpassant_file = -1);
+    // Position(std::string ascii, Color side2move, const CastleState& cstate);
 
     inline bool castle_allowed(CastleState cs) const {
         return cs & ~castle_state;
     }
 
     void apply_move(const Move&);
-    
+
     // std::string to_ascii() const;
 
     // std::string serialize() const;
@@ -63,24 +65,24 @@ class Position {
 
     Bitboard get_attackers(Square target_sq, Color atk_color) const;
 
-    // return a bitboard mask of all the squares that c is attacking
+    /*
+    Return a bitboard mask of all the squares that c is attacking
+    NOTE this ignores the king for sliding pieces occupancy
+    */
     Bitboard get_attack_mask(Color c) const;
 
-    inline Color get_side_to_move() const {
-        return side_to_move;
-    }
+    inline Color get_side_to_move() const { return side_to_move; }
 
-    inline bool get_enpassant() const {
-        return enpassant_mask;
-    };
+    inline Bitboard get_enpassant() const { return enpassant_mask; };
 
    private:
-    Bitboard piece_bitboards[N_PIECE_TYPES];
-    Bitboard color_bitboards[N_COLORS];
     Color side_to_move;
     CastleState castle_state;
-    // zero if no en-passant last ply, else the capture mask of en-passant
-    // e.g. last ply a2-a4, enpassant would hold occupancy of a3.
+    Bitboard piece_bitboards[N_PIECE_TYPES];
+    Bitboard color_bitboards[N_COLORS];
+    /* zero if no en-passant last ply, else the capture mask of en-passant
+     * e.g. last ply a2-a4, enpassant would hold occupancy of a3.
+     */
     Bitboard enpassant_mask;
 };
 

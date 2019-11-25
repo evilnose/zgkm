@@ -24,7 +24,8 @@ int main(int argc, char* argv[]) {
         "....k..."
         "........";
     CastleState cstate;
-    Position pos(board, BLACK, cstate);
+    Position pos;
+    pos.load_inline_ascii(board, BLACK, cstate);
     test_absolute_pins(pos);
     printf("Done.\n");
 
@@ -38,7 +39,8 @@ int main(int argc, char* argv[]) {
         "..nRN..."
         "........"
         "........";
-    Position pos1(board1, BLACK, cstate);
+    Position pos1;
+    pos1.load_inline_ascii(board1, BLACK, cstate);
     Square king_sq = bboard::bitscan_fwd(pos1.get_bitboard(WHITE, KING));
     test_get_attackers(pos1, king_sq, BLACK);
 
@@ -56,16 +58,19 @@ int main(int argc, char* argv[]) {
     printf("Done.\n");
 
     printf("Testing movegen(0 checks)...\n");
-    const char* board2 = 
-        "........"
-        "...K..P."
-        "........"
-        "...B...."
-        "......R."
-        "........"
-        ".....Np."
-        "....k...";
-    Position pos2(board2, WHITE, cstate);
+    // const char* board2 = 
+    //     "........"
+    //     "...K..P."
+    //     "........"
+    //     "...B...."
+    //     "......R."
+    //     "........"
+    //     ".....Np."
+    //     "....k...";
+    char board2[256];
+    read_and_trim("./fixtures/enpassant_c1.board", board2);
+    Position pos2;
+    pos2.load_inline_ascii(board2, WHITE, cstate, 'f' - 'a');
     std::vector<Move> moves = gen_legal_moves(pos2);
     printf("Found %zd legal moves:\n", moves.size());
     for (Move mv: moves) {

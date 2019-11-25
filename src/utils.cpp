@@ -1,5 +1,9 @@
 #include "utils.h"
 
+#include <cwctype>
+
+#include <fstream>
+
 using std::string;
 
 string repr(Bitboard bitboard) {
@@ -28,4 +32,18 @@ bool move_square(Square& sq, int d_rank, int d_file) {
 
     sq = to_square(rank * 8 + file);
     return true;
+}
+
+void read_and_trim(string fname, char buf[]) {
+    std::ifstream in;
+    int i = 0;
+    char ch;
+    in.open(fname);
+    assert(in.good());
+    while (i < 255 && in.get(ch)) {
+        if (!iswspace(ch))
+            buf[i++] = ch;
+    }
+    in.close();
+    buf[i] = '\0';
 }
