@@ -1,6 +1,6 @@
 #include <cassert>
 
-#include "human.h"
+#include "notation.h"
 #include "utils.h"
 
 // Given a target square for castling, return whether it is kingside.
@@ -23,7 +23,7 @@ inline char piece_char(PieceType piece) {
     }
 }
 
-string human::pretty_move(Move mv, const std::vector<Move>& legal_moves,
+string notation::pretty_move(Move mv, const std::vector<Move>& legal_moves,
                           const Position& pos, bool checking, bool mating) {
     char buf[8] = "O-\0\0\0\0\0";  // kingside castle by default
     int bufidx = 0;
@@ -31,7 +31,8 @@ string human::pretty_move(Move mv, const std::vector<Move>& legal_moves,
     Square tgt_sq = move_target(mv);
     if (mt == NORMAL_MOVE || mt == ENPASSANT || mt == PROMOTION) {
         bool is_capture =
-            (pos.get_all_bitboard() & mask_square(tgt_sq)) || mt == ENPASSANT;
+            (pos.get_all_bitboard() & bboard::mask_square(tgt_sq)) ||
+            mt == ENPASSANT;
         Color color;
         PieceType piece;
         Square src_sq = move_source(mv);
@@ -39,7 +40,7 @@ string human::pretty_move(Move mv, const std::vector<Move>& legal_moves,
         assert(got);
         if (piece == PAWN) {
             if (is_capture) {
-                buf[bufidx++] = file_char(sq_file(src_sq));
+                buf[bufidx++] = file_char(utils::sq_file(src_sq));
             }
         } else {
             buf[bufidx++] = piece_char(piece);
@@ -53,21 +54,25 @@ string human::pretty_move(Move mv, const std::vector<Move>& legal_moves,
                 if (other_mv == mv) continue;
 
                 Square other_src = move_source(other_mv);
-                if (pos.get_bitboard(color, piece) & mask_square(other_src)) {
-                    ambiguity |= sq_rank(src_sq) == sq_rank(other_src);
-                    ambiguity |= (sq_file(src_sq) == sq_file(other_src)) << 1;
+                if (pos.get_bitboard(color, piece) &
+                    bboard::mask_square(other_src)) {
+                    ambiguity |=
+                        utils::sq_rank(src_sq) == utils::sq_rank(other_src);
+                    ambiguity |=
+                        (utils::sq_file(src_sq) == utils::sq_file(other_src))
+                        << 1;
                 }
             }
 
             switch (ambiguity) {
                 case 0:
                 case 2:
-                    buf[bufidx++] = file_char(sq_file(src_sq));
+                    buf[bufidx++] = file_char(utils::sq_file(src_sq));
                     break;
                 case 3:
-                    buf[bufidx++] = file_char(sq_file(src_sq));
+                    buf[bufidx++] = file_char(utils::sq_file(src_sq));
                 case 1:
-                    buf[bufidx++] = '1' + sq_rank(src_sq);
+                    buf[bufidx++] = '1' + utils::sq_rank(src_sq);
                     break;
             }
         }
@@ -77,8 +82,8 @@ string human::pretty_move(Move mv, const std::vector<Move>& legal_moves,
         bufidx += is_capture;
 
         // Target square
-        buf[bufidx++] = file_char(sq_file(tgt_sq));
-        buf[bufidx++] = '1' + sq_rank(tgt_sq);
+        buf[bufidx++] = file_char(utils::sq_file(tgt_sq));
+        buf[bufidx++] = '1' + utils::sq_rank(tgt_sq);
 
         // Promotion
         if (mt == PROMOTION) {
@@ -100,4 +105,17 @@ string human::pretty_move(Move mv, const std::vector<Move>& legal_moves,
     }
 
     return string(buf);
+}
+
+/*
+ * load verbose FEN format string str into Position pos
+ * NOTE: does not check validity
+ */
+bool load_vfen(Position& pos, const char* str) {
+    for (int row = 0; row < 8; row++) {
+        for (int col = 0; col < 8; col++) {
+            //TODO
+            //pos.place_piece(
+        }
+    }
 }

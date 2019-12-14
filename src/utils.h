@@ -8,6 +8,7 @@
 
 static bool is_slider_table[]{0, 0, 0, 1, 1, 1, 0, 0};
 
+namespace utils {
 inline int sq_rank(Square sq) { return sq / 8; }
 inline int sq_file(Square sq) { return sq % 8; }
 
@@ -21,10 +22,6 @@ inline bool move_square(Square& sq, const Direction& dir) {
     return move_square(sq, dir.d_rank, dir.d_file);
 }
 
-inline Bitboard mask_square(const Square& square) {
-    return 1ULL << square;
-}
-
 inline int popcount(unsigned long long n) {
     return __builtin_popcount((unsigned int)(n)) +
            __builtin_popcount((unsigned int)(n >> 32));
@@ -33,6 +30,10 @@ inline int popcount(unsigned long long n) {
 inline bool is_slider(PieceType pt) {
     assert(pt < (int)N_PIECE_TYPES);
     return is_slider_table[(int)pt];
+}
+
+inline CastleState to_castle_state(Color c, BoardSide side) {
+	return (CastleState)((1 << (2 * (int)c)) + (1 << (int)side));
 }
 
 // /* read from file and trim all whitespace; output to buf */
@@ -67,3 +68,4 @@ inline Color opposite_color(Color c) {
 }
 
 std::string repr(Bitboard board);
+}

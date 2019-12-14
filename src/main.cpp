@@ -1,8 +1,8 @@
 #include <cassert>
 
- // TODO for debug; remove this
+// TODO for debug; remove this
 #include <iostream>
-#include "human.h"
+#include "notation.h"
 
 #include "bitboard.h"
 #include "movegen.h"
@@ -45,8 +45,8 @@ int main(int argc, char* argv[]) {
     test_get_attackers(pos1, king_sq, BLACK);
 
     // test create move
-    Square target = to_square(33);
-    Square source = to_square(1);
+    Square target = utils::to_square(33);
+    Square source = utils::to_square(1);
     // MoveType mt = NORMAL_MOVE;
     // PieceType pt = QUEEN;
     Move mv = create_normal_move(target, source);
@@ -58,7 +58,7 @@ int main(int argc, char* argv[]) {
     printf("Done.\n");
 
     printf("Testing movegen(0 checks)...\n");
-    // const char* board2 = 
+    // const char* board2 =
     //     "........"
     //     "...K..P."
     //     "........"
@@ -68,17 +68,18 @@ int main(int argc, char* argv[]) {
     //     ".....Np."
     //     "....k...";
     char board2[256];
-    read_and_trim("./fixtures/enpassant_c1.board", board2);
+    utils::read_and_trim("./fixtures/enpassant_c1.board", board2);
     Position pos2;
     pos2.load_inline_ascii(board2, WHITE, cstate, 'f' - 'a');
     std::vector<Move> moves = gen_legal_moves(pos2);
     printf("Found %zd legal moves:\n", moves.size());
-    for (Move mv: moves) {
+    for (Move mv : moves) {
         // assuming no check or mate
-        std::cout << human::pretty_move(mv, moves, pos2, false, false) << std::endl;
+        std::cout << notation::pretty_move(mv, moves, pos2, false, false)
+                  << std::endl;
     }
     printf("Done.\n");
-    
+
     printf("All done.\n");
     return 0;
 }

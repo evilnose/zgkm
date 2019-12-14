@@ -90,8 +90,8 @@ struct Move {
 */
 /*
 Move representation
-bits 0-5:   target square (64)
-bits 6-11:  source square (64)
+bits 0-5:   target square (64) / color if castling move
+bits 6-11:  source square (64) / castling side
 bits 12-13: move type (4)
 bits 14-15: promotion piece (4; 0->KNIGHT, ... 3->QUEEN)
 */
@@ -109,6 +109,14 @@ inline Square move_source(Move mv) {
     return (Square)((mv & ~MOVE_TARGET_MASK) >> (MOVE_LEN - 12));
 }
 
+inline Color move_castle_color(Move mv) {
+	return (Color)(mv >> (MOVE_LEN - 6));
+}
+
+inline BoardSide move_castle_side(Move mv) {
+    return (BoardSide)((mv & ~MOVE_TARGET_MASK) >> (MOVE_LEN - 12));
+}
+
 inline MoveType move_type(Move mv) {
     return (MoveType)((mv & 0xf) >> (MOVE_LEN - 14));
 }
@@ -124,6 +132,10 @@ inline Move create_enpassant(Square tar, Square src, MoveType type) {
 
 inline Move create_normal_move(Square tar, Square src) {
     return (((Move)NORMAL_MOVE) << 2) | ((Move)src << 4) | ((Move)tar << 10);
+}
+
+inline Move create_castling_move(Color c, BoardSide side) {
+    return (((Move)CASTLING_MOVE) << 2) | ((Move)side << 4) | ((Move)c << 10);
 }
 
 enum CastleState {

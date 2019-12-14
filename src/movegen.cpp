@@ -10,7 +10,7 @@ using std::vector;
 namespace {
 Bitboard absolute_pins(const Position& pos, Color pinned_color,
                        Bitboard& pinner_out) {
-    Color opp_color = opposite_color(pinned_color);
+    Color opp_color = utils::opposite_color(pinned_color);
     // Color opp_color = (Color) ((int) N_COLORS - 1 - (int) pinned_color);
     Bitboard pinned = 0ULL;
     Bitboard full_occ = pos.get_all_bitboard();
@@ -45,7 +45,7 @@ inline void add_moves(vector<Move>& moves, Square src, Bitboard tgts) {
         Square sq = bboard::bitscan_fwd(tgts);
         Move tmp = create_normal_move(sq, src);
         moves.push_back(tmp);
-        tgts &= ~mask_square(sq);
+        tgts &= ~bboard::mask_square(sq);
     }
 }
 
@@ -53,17 +53,21 @@ inline void add_enpassant(vector<Move>& moves, Square src, Square tgt) {
     moves.push_back(create_enpassant(tgt, src, ENPASSANT));
 }
 
+inline void add_castling_move(vector<Move>& moves, Color c, BoardSide side) {
+    moves.push_back(create_castling_move(c, side));
+}
+
 // returns whether (squares are on same rank OR squares are on same file)
 inline bool same_line(Square sq1, Square sq2) {
-    return (sq_rank(sq1) == sq_rank(sq2)) || (sq_file(sq1) == sq_file(sq2));
+    return (utils::sq_rank(sq1) == utils::sq_rank(sq2)) || (utils::sq_file(sq1) == utils::sq_file(sq2));
 }
 }  // namespace
 
 void test_absolute_pins(Position& position) {
     Bitboard pinner;
     Bitboard pinned = absolute_pins(position, BLACK, pinner);
-    std::string pinned_repr = repr(pinned);
-    std::string pinner_repr = repr(pinner);
+    std::string pinned_repr = utils::repr(pinned);
+    std::string pinner_repr = utils::repr(pinner);
     std::cout << "Pinned:\n" << pinned_repr << std::endl;
     std::cout << "Pinner:\n" << pinner_repr << std::endl;
 }
@@ -139,14 +143,14 @@ vector<Move> gen_legal_moves(const Position& pos) {
     // TODO promotion
     // TODO weird enpassant pin
     Color atk_c = pos.get_side_to_move();
-    Color def_c = opposite_color(atk_c);
+    Color def_c = utils::opposite_color(atk_c);
     Bitboard atk_occ = pos.get_color_bitboard(atk_c);
     Bitboard def_occ = pos.get_color_bitboard(def_c);
     Bitboard all_occ = atk_occ | def_occ;
 
     Square king_sq = bboard::bitscan_fwd(pos.get_bitboard(atk_c, KING));
     Bitboard checkers = pos.get_attackers(king_sq, def_c);
-    int n_checks = popcount(checkers);
+    int n_checks = utils::popcount(checkers);
 
     Bitboard def_attacks = pos.get_attack_mask(def_c);
     Bitboard king_attacks =
@@ -190,14 +194,14 @@ vector<Move> gen_legal_moves(const Position& pos) {
                 add_enpassant(moves, sq, enpassant_sq);
             }
 
-            free_pawns &= ~mask_square(sq);
+            free_pawns &= ~bboard::mask_square(sq);
         }
 
         while (pinned_pawns != 0ULL) {
             Square sq = bboard::bitscan_fwd(pinned_pawns);
-            int d_rank = sq_rank(sq) - sq_rank(king_sq);
+            int d_rank = utils::sq_rank(sq) - utils::sq_rank(king_sq);
             if (d_rank != 0) {
-                int d_file = sq_file(sq) - sq_file(king_sq);
+                int d_file = utils::sq_file(sq) - utils::sq_file(king_sq);
                 if (d_file == 0) {
                     // pawn pushes
                     Bitboard pawn_mask =
@@ -212,8 +216,8 @@ vector<Move> gen_legal_moves(const Position& pos) {
                 } else {
                     // one potential pawn capture
                     Square t_sq = sq;
-                    move_square(t_sq, d_rank, d_file);
-                    Bitboard masked_tar = mask_square(t_sq);
+                    utils::move_square(t_sq, d_rank, d_file);
+                    Bitboard masked_tar = bboard::mask_square(t_sq);
                     add_moves(moves, sq,
                               masked_tar & bboard::pawn_attacks(sq, atk_c));
                     if (masked_tar & enpassant) {
@@ -221,7 +225,7 @@ vector<Move> gen_legal_moves(const Position& pos) {
                     }
                 }
             }  // else if on same rank, pawn can't move
-            pinned_pawns &= ~mask_square(sq);
+            pinned_pawns &= ~bboard::mask_square(sq);
         }
 
         // knights
@@ -229,7 +233,7 @@ vector<Move> gen_legal_moves(const Position& pos) {
         while (free_knights != 0ULL) {
             Square sq = bboard::bitscan_fwd(free_knights);
             add_moves(moves, sq, bboard::knight_attacks(sq) & ~atk_occ);
-            free_knights &= ~mask_square(sq);
+            free_knights &= ~bboard::mask_square(sq);
         }
 
         // bishops
@@ -239,7 +243,7 @@ vector<Move> gen_legal_moves(const Position& pos) {
         while (free_bishops != 0ULL) {
             Square sq = bboard::bitscan_fwd(free_bishops);
             add_moves(moves, sq, bboard::bishop_attacks(sq, all_occ));
-            free_bishops &= ~mask_square(sq);
+            free_bishops &= ~bboard::mask_square(sq);
         }
 
         Bitboard kb_atk = bboard::bishop_attacks(king_sq, 0ULL);
@@ -251,7 +255,7 @@ vector<Move> gen_legal_moves(const Position& pos) {
                 add_moves(moves, sq,
                           bboard::bishop_attacks(sq, all_occ) & kb_atk);
             }
-            pinned_bishops &= ~mask_square(sq);
+            pinned_bishops &= ~bboard::mask_square(sq);
         }
 
         // rooks
@@ -261,7 +265,7 @@ vector<Move> gen_legal_moves(const Position& pos) {
         while (free_rooks != 0ULL) {
             Square sq = bboard::bitscan_fwd(free_rooks);
             add_moves(moves, sq, bboard::rook_attacks(sq, all_occ));
-            free_rooks &= ~mask_square(sq);
+            free_rooks &= ~bboard::mask_square(sq);
         }
 
         Bitboard kr_atk = bboard::rook_attacks(king_sq, 0ULL);
@@ -273,7 +277,7 @@ vector<Move> gen_legal_moves(const Position& pos) {
                 add_moves(moves, sq,
                           bboard::rook_attacks(sq, all_occ) & kr_atk);
             }
-            pinned_rooks &= ~mask_square(sq);
+            pinned_rooks &= ~bboard::mask_square(sq);
         }
 
         Bitboard queens = pos.get_bitboard(atk_c, QUEEN);
@@ -282,7 +286,7 @@ vector<Move> gen_legal_moves(const Position& pos) {
         while (free_queens != 0ULL) {
             Square sq = bboard::bitscan_fwd(free_queens);
             add_moves(moves, sq, bboard::queen_attacks(sq, all_occ));
-            free_queens &= ~mask_square(sq);
+            free_queens &= ~bboard::mask_square(sq);
         }
 
         while (pinned_queens != 0ULL) {
@@ -296,7 +300,18 @@ vector<Move> gen_legal_moves(const Position& pos) {
                 add_moves(moves, sq,
                           bboard::bishop_attacks(sq, all_occ) & kb_atk);
             }
-            pinned_queens &= ~mask_square(sq);
+            pinned_queens &= ~bboard::mask_square(sq);
+        }
+
+        // castling
+        if (pos.has_castling_rights(utils::to_castle_state(atk_c, KINGSIDE)) &&
+            !(bboard::castle_occ(atk_c, KINGSIDE) & all_occ & def_attacks)) {
+            add_castling_move(moves, atk_c, KINGSIDE);
+        }
+
+        if (pos.has_castling_rights(utils::to_castle_state(atk_c, QUEENSIDE)) &&
+            !(bboard::castle_occ(atk_c, QUEENSIDE) & all_occ & def_attacks)) {
+            add_castling_move(moves, atk_c, QUEENSIDE);
         }
     } else if (n_checks == 1) {
         Color dummy_c;
@@ -306,7 +321,7 @@ vector<Move> gen_legal_moves(const Position& pos) {
         assert(dummy_c == def_c);
         // mask for BOTH blocking and capturing
         Bitboard block_mask = checkers;
-        if (is_slider(ptype)) {
+        if (utils::is_slider(ptype)) {
             switch (ptype) {
                 case BISHOP:
                     block_mask |= bboard::bishop_attacks(king_sq, all_occ) &
@@ -365,7 +380,7 @@ vector<Move> gen_legal_moves(const Position& pos) {
                 add_enpassant(moves, sq, enpassant_sq);
             }
 
-            free_pawns &= ~mask_square(sq);
+            free_pawns &= ~bboard::mask_square(sq);
         }
 
         // knights
@@ -374,7 +389,7 @@ vector<Move> gen_legal_moves(const Position& pos) {
             Square sq = bboard::bitscan_fwd(free_knights);
             add_moves(moves, sq,
                       bboard::knight_attacks(sq) & ~atk_occ & block_mask);
-            free_knights &= ~mask_square(sq);
+            free_knights &= ~bboard::mask_square(sq);
         }
 
         // bishops
@@ -383,7 +398,7 @@ vector<Move> gen_legal_moves(const Position& pos) {
             Square sq = bboard::bitscan_fwd(free_bishops);
             add_moves(moves, sq,
                       bboard::bishop_attacks(sq, all_occ) & block_mask);
-            free_bishops &= ~mask_square(sq);
+            free_bishops &= ~bboard::mask_square(sq);
         }
 
         // rooks
@@ -392,7 +407,7 @@ vector<Move> gen_legal_moves(const Position& pos) {
             Square sq = bboard::bitscan_fwd(free_rooks);
             add_moves(moves, sq,
                       bboard::rook_attacks(sq, all_occ) & block_mask);
-            free_rooks &= ~mask_square(sq);
+            free_rooks &= ~bboard::mask_square(sq);
         }
 
         Bitboard free_queens = pos.get_bitboard(atk_c, QUEEN) & ~pinned;
@@ -400,31 +415,8 @@ vector<Move> gen_legal_moves(const Position& pos) {
             Square sq = bboard::bitscan_fwd(free_queens);
             add_moves(moves, sq,
                       bboard::queen_attacks(sq, all_occ) & block_mask);
-            free_queens &= ~mask_square(sq);
+            free_queens &= ~bboard::mask_square(sq);
         }
     }  // else only king moves are legal, and nothing more needs to be done
     return moves;
 }
-
-// vector<Move> gen_king_moves(const Position& position) {
-//     /*
-//     Notes
-
-//     steps:
-//     1. generate move masks for all opposing pieces. For sliding pieces,
-//     remember to exclude this king as a blocker.
-//     2. check all available squares for king with masks
-
-//     */
-
-//     //TODO
-// }
-
-// vector<Move> gen_bishop_moves(const Position& position) {
-//     const Bitboard key = position.get_piece_bitboard(ANY_PIECE);
-//     // TODO
-// }
-
-// vector<Move> gen_rook_moves(const Position& position) {
-//     // TODO
-// }

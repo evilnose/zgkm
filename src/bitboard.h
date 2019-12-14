@@ -31,19 +31,30 @@ extern Bitboard p_attack_table[N_COLORS][64];
 extern Bitboard n_attack_table[64];
 extern Bitboard k_attack_table[64];
 
+// occupancy that must not be attacked or occupied by any piece in order
+// for castling to be possible. NOTE does not include king's own square.
+// Indexing: white kingside, white queenside, black kingside, black queenside.
+static Bitboard castle_occ_table[]{0x6ULL, 0x30ULL, 0x600000000000000ULL,
+                                   0x3000000000000000ULL};
+
 // called once at the start of the program; populate move tables
 void initialize();
 
 std::string repr(Bitboard bitboard);
 
+inline Bitboard mask_square(const Square& square) {
+    return 1ULL << square;
+}
+
 // return the index of the least significant set bit
 inline Square bitscan_fwd(Bitboard board) {
-    return to_square(debruijn_table[((board & -board) * DEBRUIJN) >> 58]);
+    return utils::to_square(
+        debruijn_table[((board & -board) * DEBRUIJN) >> 58]);
 }
 
 // return whether there is exactly one bit set
 inline bool one_bit(Bitboard board) {
-    return board && !(board & (board - 1)); // && board for edge case 0
+    return board && !(board & (board - 1));  // && board for edge case 0
 }
 
 inline Bitboard bishop_attacks(Square sq, Bitboard occ) {
@@ -65,15 +76,16 @@ inline Bitboard pawn_attacks(Square sq, Color atk_color) {
 inline Bitboard pawn_pushes(Square sq, Color atk_color) {
     int d_rank = 1 - static_cast<int>(atk_color) * 2;
     // return 0 if promotion
-    return mask_square(to_square(sq + d_rank * 8)) & ~PROMOTION_RANKS;
+    return bboard::mask_square(utils::to_square(sq + d_rank * 8)) &
+           ~PROMOTION_RANKS;
 }
 
-inline Bitboard knight_attacks(Square sq) {
-    return n_attack_table[sq];
-}
+inline Bitboard knight_attacks(Square sq) { return n_attack_table[sq]; }
 
-inline Bitboard king_attacks(Square sq) {
-    return k_attack_table[sq];
+inline Bitboard king_attacks(Square sq) { return k_attack_table[sq]; }
+
+inline Bitboard castle_occ(Color c, BoardSide side) {
+    return castle_occ_table[static_cast<int>(c) * 2 + static_cast<int>(side)];
 }
 
 // Find the first occupied square from s1 to s2.
@@ -89,6 +101,6 @@ Bitboard bishop_xray_attacks(Square sq, Bitboard occ, Bitboard blockers);
 
 /* same as above except for a rook */
 Bitboard rook_xray_attacks(Square sq, Bitboard occ, Bitboard blockers);
-}  // namespace bb
+}  // namespace bboard
 
 void test_magics();

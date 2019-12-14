@@ -18,9 +18,12 @@ Position::Position()
       castle_state(init_cstate),
       piece_bitboards{},
       color_bitboards{},
-      enpassant_mask{} {}
+      enpassant_mask{},
+	  halfmove_clock{0},
+	  fullmove_number{1}
+	  {}
 
-#include <iostream>
+
 void Position::load_inline_ascii(string ascii, Color side2move,
                                  const CastleState& cstate,
                                  int enpassant_file) {
@@ -29,7 +32,7 @@ void Position::load_inline_ascii(string ascii, Color side2move,
     castle_state = cstate;
     if (enpassant_file != -1) {
         int enp_rank = side2move == WHITE ? 7 - 2 : 2;
-        enpassant_mask = mask_square((Square)(8 * enp_rank + enpassant_file));
+        enpassant_mask = bboard::mask_square((Square)(8 * enp_rank + enpassant_file));
     }
 
     for (int i = 0; i < 64; i++) {
@@ -62,8 +65,8 @@ void Position::load_inline_ascii(string ascii, Color side2move,
                 printf("WARNING: unrecognized char in from_ascii() string");
                 return;
         }
-        Square rank = to_square(7 - i / 8);
-        Square file = to_square(i % 8);
+        Square rank = utils::to_square(7 - i / 8);
+        Square file = utils::to_square(i % 8);
         Bitboard mask = 1ULL << (rank * 8 + file);
         piece_bitboards[pt] |= mask;
         piece_bitboards[ANY_PIECE] |= mask;
@@ -76,7 +79,7 @@ void Position::apply_move(const Move&) {
 }
 
 Bitboard Position::get_attackers(Square target_sq, Color atk_color) const {
-    Color own_color = opposite_color(atk_color);
+    Color own_color = utils::opposite_color(atk_color);
     Bitboard mask = 0ULL;
 
     // pawns
@@ -106,7 +109,7 @@ Bitboard Position::get_attackers(Square target_sq, Color atk_color) const {
 
 // TODO add more members in Position to make this more optimized
 bool Position::get_piece_at(Square sq, Color& c_out, PieceType& p_out) const {
-    Bitboard mask = mask_square(sq);
+    Bitboard mask = bboard::mask_square(sq);
     Color c;
     if (mask & get_color_bitboard(WHITE)) {
         c = WHITE;
@@ -142,14 +145,14 @@ Bitboard Position::get_attack_mask(Color col) const {
     Bitboard mask = 0ULL;
     // remove king from occ so he doesn't block anything
     Bitboard occ =
-        get_all_bitboard() & ~get_bitboard(opposite_color(col), KING);
+        get_all_bitboard() & ~get_bitboard(utils::opposite_color(col), KING);
 
     // pawns
     Bitboard pawns = get_bitboard(col, PAWN);
     while (pawns != 0ULL) {
         Square sq = bboard::bitscan_fwd(pawns);
         mask |= bboard::pawn_attacks(sq, col);
-        pawns &= ~mask_square(sq);
+        pawns &= ~bboard::mask_square(sq);
     }
 
     // knights
@@ -157,7 +160,7 @@ Bitboard Position::get_attack_mask(Color col) const {
     while (knights != 0ULL) {
         Square sq = bboard::bitscan_fwd(knights);
         mask |= bboard::knight_attacks(sq);
-        knights &= ~mask_square(sq);
+        knights &= ~bboard::mask_square(sq);
     }
 
     // bishops
@@ -165,7 +168,7 @@ Bitboard Position::get_attack_mask(Color col) const {
     while (bishops != 0ULL) {
         Square sq = bboard::bitscan_fwd(bishops);
         mask |= bboard::bishop_attacks(sq, occ);
-        bishops &= ~mask_square(sq);
+        bishops &= ~bboard::mask_square(sq);
     }
 
     // rooks
@@ -173,7 +176,7 @@ Bitboard Position::get_attack_mask(Color col) const {
     while (rooks != 0ULL) {
         Square sq = bboard::bitscan_fwd(rooks);
         mask |= bboard::rook_attacks(sq, occ);
-        rooks &= ~mask_square(sq);
+        rooks &= ~bboard::mask_square(sq);
     }
 
     // queens
@@ -182,7 +185,7 @@ Bitboard Position::get_attack_mask(Color col) const {
         Square sq = bboard::bitscan_fwd(queens);
         mask |= bboard::rook_attacks(sq, occ);
         mask |= bboard::bishop_attacks(sq, occ);
-        queens &= ~mask_square(sq);
+        queens &= ~bboard::mask_square(sq);
     }
 
     // king
@@ -192,8 +195,18 @@ Bitboard Position::get_attack_mask(Color col) const {
     return mask;
 }
 
+void Position::clear() {
+
+}
+
+void Position::place_piece(Color c, PieceType piece, Square sq) {
+	Bitboard mask = bboard::mask_square(sq);
+	piece_bitboards[(int)piece] |= mask;
+	color_bitboards[(int)c] |= mask;
+}
+
 #include <iostream>
 void test_get_attackers(Position& pos, Square sq, Color atk_color) {
     Bitboard attackers = pos.get_attackers(sq, atk_color);
-    std::cout << "attackers mask:\n" << repr(attackers) << std::endl;
+    std::cout << "attackers mask:\n" << utils::repr(attackers) << std::endl;
 }

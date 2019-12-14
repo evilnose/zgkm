@@ -3,7 +3,7 @@ SDIR = src
 ODIR = obj
 TDIR = test
 SOURCES = bitboard.cpp main.cpp movegen.cpp position.cpp types.cpp utils.cpp \
-		  human.cpp
+		  notation.cpp
 _TESTS = test_bitboard.cpp
 TESTS = $(patsubst %,$(_TESTS)/%,$(TDIR))
 _OBJECTS = $(SOURCES:.cpp=.o)

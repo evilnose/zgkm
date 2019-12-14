@@ -11,31 +11,13 @@ class Position {
 
     Position(std::string serial);
 
-    /*
-    Initialize board from ASCII representation.
-    The ASCII string is 64 characters long. The first ASCII char corresponds to
-    A8, and the last to H1. The chess piece at each position is denoted by:
-    
-
-    . if empty,
-    p if a pawn,
-    n if a knight,
-    b if a bishop,
-    r if a rook,
-    q if a queen, and
-    k if a king.
-
-    If the piece is black, the letter is capitalized, i.e. a black pawn is
-    denoted by 'P'.
-
-    NOTE: This does not check for validity of the board, so make sure of that
-    before calling it.
-    */
+	// TODO remove
     void load_inline_ascii(std::string ascii, Color side2move,
                            const CastleState& cstate, int enpassant_file = -1);
+
     // Position(std::string ascii, Color side2move, const CastleState& cstate);
 
-    inline bool castle_allowed(CastleState cs) const {
+    inline bool has_castling_rights(CastleState cs) const {
         return cs & ~castle_state;
     }
 
@@ -71,9 +53,35 @@ class Position {
     */
     Bitboard get_attack_mask(Color c) const;
 
+	inline void set_side_to_move(Color c) { side_to_move = c; }
+
     inline Color get_side_to_move() const { return side_to_move; }
 
     inline Bitboard get_enpassant() const { return enpassant_mask; };
+
+	// clears everything and resets all states. i.e. empty board
+	// and starting castling rights
+	void clear();
+
+	void place_piece(Color c, PieceType piece, Square sq);
+
+	inline void set_castle_state(CastleState cstate) {
+		castle_state = cstate;
+	}
+
+	// Note: sq is the TARGET CAPTURE square of the en-passant pawn
+	// i.e. behind it
+	inline void set_enpassant(Square sq) {
+		enpassant_mask = bboard::mask_square(sq);
+	}
+
+	inline void set_halfmove_clock(int clock) {
+		halfmove_clock = clock;
+	}
+
+	inline void set_fullmove_number(int number) {
+		fullmove_number = number;
+	}
 
    private:
     Color side_to_move;
@@ -84,6 +92,11 @@ class Position {
      * e.g. last ply a2-a4, enpassant would hold occupancy of a3.
      */
     Bitboard enpassant_mask;
+
+	// number of halfmoves since the last capture or pawn advance
+	// TODO game is drawn after this reaches 100
+	int halfmove_clock; 
+	int fullmove_number;
 };
 
 void test_get_attackers(Position& pos, Square sq, Color atk_color);

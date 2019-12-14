@@ -51,7 +51,7 @@ Bitboard sliding_attacks(const Square& origin, const Bitboard& occ,
         Direction dir = directions[i];
         Square sq = origin;
 
-        while (move_square(sq, dir)) {
+        while (utils::move_square(sq, dir)) {
             attacks |= (1ULL << sq);
             if ((attacks & occ) != last_and) {
                 // cannot move further in this direction
@@ -77,7 +77,7 @@ void b_init_occupancies() {
 
         // soft TODO: optimize for 32 bit
         // https://www.chessprogramming.org/Magic_Bitboards#32-bit_Magics
-        bboard::b_magics[sq].shift = 64 - popcount(rel_occupancy);
+        bboard::b_magics[sq].shift = 64 - utils::popcount(rel_occupancy);
     }
 }
 
@@ -88,8 +88,8 @@ void r_init_occupancies() {
         Bitboard mask = 0x0ULL;
 
         // get relevant occupancy (without edge)
-        int rank = sq_rank(sq);
-        int file = sq_file(sq);
+        int rank = utils::sq_rank(sq);
+        int file = utils::sq_file(sq);
         for (int r = rank + 1; r < 7; r++) mask |= (1ULL << (file + r * 8));
         for (int r = rank - 1; r > 0; r--) mask |= (1ULL << (file + r * 8));
         for (int f = file + 1; f < 7; f++) mask |= (1ULL << (f + rank * 8));
@@ -100,7 +100,7 @@ void r_init_occupancies() {
 
         // soft TODO: optimize for 32 bit
         // https://www.chessprogramming.org/Magic_Bitboards#32-bit_Magics
-        bboard::r_magics[sq].shift = 64 - popcount(mask);
+        bboard::r_magics[sq].shift = 64 - utils::popcount(mask);
     }
 }
 
@@ -130,7 +130,7 @@ void gen_magics(bboard::MagicInfo magics[], Bitboard table[],
             ord++;
             n = (n - rel_occupancy) & rel_occupancy;
         } while (n != 0ULL);
-        PRNG prng(seed);
+        utils::PRNG prng(seed);
         bool good = true;
         // try 100 million times
         for (int k = 0; k < 100000000; k++) {
@@ -138,7 +138,7 @@ void gen_magics(bboard::MagicInfo magics[], Bitboard table[],
             // ALSO magic needs to have a certain number of nonzero bits
             magics[sq].magic = (Bitboard)prng.rand64_sparse();
             // need certain bit density
-            if (popcount((magics[sq].magic * rel_occupancy) >> 56) < 6)
+            if (utils::popcount((magics[sq].magic * rel_occupancy) >> 56) < 6)
                 continue;
 
             int collisions = 0;  // count of acceptable (good) collisions
@@ -228,13 +228,13 @@ void init_attack_tables(void) {
             mask = 0ULL;
 
             t_sq = sq;
-            if (move_square(t_sq, d_rank, -1)) {
-                mask |= mask_square(t_sq);
+            if (utils::move_square(t_sq, d_rank, -1)) {
+                mask |= bboard::mask_square(t_sq);
             }
 
             t_sq = sq;
-            if (move_square(t_sq, d_rank, 1)) {
-                mask |= mask_square(t_sq);
+            if (utils::move_square(t_sq, d_rank, 1)) {
+                mask |= bboard::mask_square(t_sq);
             }
 
             bboard::p_attack_table[(int)c][sq] = mask;
@@ -244,12 +244,12 @@ void init_attack_tables(void) {
     // // pawn first pushes (2 squares)
     // for (Square sq = SQ_A2; sq <= SQ_H2; sq++) {
     //     // move two ranks up
-    //     bboard::p_push_table[(int)WHITE][sq] |= mask_square(to_square(sq + 16));
+    //     bboard::p_push_table[(int)WHITE][sq] |= bboard::mask_square(to_square(sq + 16));
     // }
 
     // for (Square sq = SQ_A7; sq <= SQ_H7; sq++) {
     //     // move two ranks down
-    //     bboard::p_push_table[(int)BLACK][sq] |= mask_square(to_square(sq - 16));
+    //     bboard::p_push_table[(int)BLACK][sq] |= bboard::mask_square(to_square(sq - 16));
     // }
 
     // knights
@@ -258,8 +258,8 @@ void init_attack_tables(void) {
         for (int d_rank = -1; d_rank <= 1; d_rank += 2) {
             for (int d_file = -2; d_file <= 2; d_file += 4) {
                 t_sq = sq;
-                if (move_square(t_sq, d_rank, d_file)) {
-                    mask |= mask_square(t_sq);
+                if (utils::move_square(t_sq, d_rank, d_file)) {
+                    mask |= bboard::mask_square(t_sq);
                 }
             }
         }
@@ -267,8 +267,8 @@ void init_attack_tables(void) {
         for (int d_file = -1; d_file <= 1; d_file += 2) {
             for (int d_rank = -2; d_rank <= 2; d_rank += 4) {
                 t_sq = sq;
-                if (move_square(t_sq, d_rank, d_file)) {
-                    mask |= mask_square(t_sq);
+                if (utils::move_square(t_sq, d_rank, d_file)) {
+                    mask |= bboard::mask_square(t_sq);
                 }
             }
         }
@@ -282,13 +282,13 @@ void init_attack_tables(void) {
         for (int d_rank = -1; d_rank <= 1; d_rank++) {
             for (int d_file = -1; d_file <= 1; d_file++) {
                 t_sq = sq;
-                if (move_square(t_sq, d_rank, d_file)) {
-                    mask |= mask_square(t_sq);
+                if (utils::move_square(t_sq, d_rank, d_file)) {
+                    mask |= bboard::mask_square(t_sq);
                 }
             }
         }
 
-        mask &= ~mask_square(sq);  // unset bit at offset (0, 0)
+        mask &= ~bboard::mask_square(sq);  // unset bit at offset (0, 0)
 
         bboard::k_attack_table[sq] = mask;
     }
@@ -343,15 +343,15 @@ void test_magics() {
 }
 
 Bitboard bboard::blocker(Square s1, Square s2, Bitboard occ) {
-    I8 d_rank = sq_rank(s2) - sq_rank(s1);
-    I8 d_file = sq_file(s2) - sq_file(s1);
+    I8 d_rank = utils::sq_rank(s2) - utils::sq_rank(s1);
+    I8 d_file = utils::sq_file(s2) - utils::sq_file(s1);
 
     Direction dir{(I8)((0 < d_rank) - (d_rank < 0)),
                   (I8)((0 < d_file) - (d_file < 0))};
 
-    for (move_square(s1, dir); s1 != s2; move_square(s1, dir)) {
-        if ((occ & mask_square(s1)) != 0ULL) {
-            return mask_square(s1);
+    for (utils::move_square(s1, dir); s1 != s2; utils::move_square(s1, dir)) {
+        if ((occ & bboard::mask_square(s1)) != 0ULL) {
+            return bboard::mask_square(s1);
         }
     }
     assert(false);
