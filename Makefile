@@ -12,7 +12,7 @@ INC = -Iinclude/
 LINK = 
 
 CFLAGS := -std=c++14
-CFLAGS_DEBUG := -Wall -g
+CFLAGS_DEBUG := -Wall -g -Og
 CFLAGS_RELEASE := -DNDEBUG -O3
 
 OLDMODE = $(shell cat .buildmode)

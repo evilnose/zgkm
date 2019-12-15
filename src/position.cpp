@@ -15,64 +15,13 @@ namespace {}  // namespace
 
 Position::Position()
     : side_to_move(WHITE),
-      castle_state(init_cstate),
+      castling_rights(ALL_CASTLING_RIGHTS),
       piece_bitboards{},
       color_bitboards{},
       enpassant_mask{},
 	  halfmove_clock{0},
 	  fullmove_number{1}
 	  {}
-
-
-void Position::load_inline_ascii(string ascii, Color side2move,
-                                 const CastleState& cstate,
-                                 int enpassant_file) {
-    assert(ascii.length() == 64);
-    side_to_move = side2move;
-    castle_state = cstate;
-    if (enpassant_file != -1) {
-        int enp_rank = side2move == WHITE ? 7 - 2 : 2;
-        enpassant_mask = bboard::mask_square((Square)(8 * enp_rank + enpassant_file));
-    }
-
-    for (int i = 0; i < 64; i++) {
-        char lower = std::tolower(ascii[i]);
-        Color color = lower == ascii[i] ? WHITE : BLACK;
-        PieceType pt;
-
-        switch (lower) {
-            case 'p':
-                pt = PAWN;
-                break;
-            case 'n':
-                pt = KNIGHT;
-                break;
-            case 'b':
-                pt = BISHOP;
-                break;
-            case 'r':
-                pt = ROOK;
-                break;
-            case 'q':
-                pt = QUEEN;
-                break;
-            case 'k':
-                pt = KING;
-                break;
-            case '.':
-                continue;
-            default:
-                printf("WARNING: unrecognized char in from_ascii() string");
-                return;
-        }
-        Square rank = utils::to_square(7 - i / 8);
-        Square file = utils::to_square(i % 8);
-        Bitboard mask = 1ULL << (rank * 8 + file);
-        piece_bitboards[pt] |= mask;
-        piece_bitboards[ANY_PIECE] |= mask;
-        color_bitboards[color] |= mask;
-    }
-}
 
 void Position::apply_move(const Move&) {
     // TODO
@@ -202,6 +151,7 @@ void Position::clear() {
 void Position::place_piece(Color c, PieceType piece, Square sq) {
 	Bitboard mask = bboard::mask_square(sq);
 	piece_bitboards[(int)piece] |= mask;
+    piece_bitboards[ANY_PIECE] |= mask;
 	color_bitboards[(int)c] |= mask;
 }
 

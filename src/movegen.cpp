@@ -304,12 +304,12 @@ vector<Move> gen_legal_moves(const Position& pos) {
         }
 
         // castling
-        if (pos.has_castling_rights(utils::to_castle_state(atk_c, KINGSIDE)) &&
+        if (pos.has_castling_rights(utils::to_castling_rights(atk_c, KINGSIDE)) &&
             !(bboard::castle_occ(atk_c, KINGSIDE) & all_occ & def_attacks)) {
             add_castling_move(moves, atk_c, KINGSIDE);
         }
 
-        if (pos.has_castling_rights(utils::to_castle_state(atk_c, QUEENSIDE)) &&
+        if (pos.has_castling_rights(utils::to_castling_rights(atk_c, QUEENSIDE)) &&
             !(bboard::castle_occ(atk_c, QUEENSIDE) & all_occ & def_attacks)) {
             add_castling_move(moves, atk_c, QUEENSIDE);
         }

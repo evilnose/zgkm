@@ -1,12 +1,13 @@
-#include <cassert>
-
-// TODO for debug; remove this
-#include <iostream>
 #include "notation.h"
-
 #include "bitboard.h"
 #include "movegen.h"
 #include "utils.h"
+
+#include <cassert>
+// TODO for debug; remove this
+#include <iostream>
+#include <sstream>
+#include <fstream>
 
 int main(int argc, char* argv[]) {
     bboard::initialize();
@@ -15,32 +16,36 @@ int main(int argc, char* argv[]) {
 
     printf("Testing absolute pins...\n");
     const char* board =
-        ".q......"
-        "..K....."
-        "..P....."
-        "..r.B..."
-        ".....b.."
-        "........"
-        "....k..."
-        "........";
-    CastleState cstate;
+        ".q....../"
+        "..K...../"
+        "..P...../"
+        "..r.B.../"
+        ".....b../"
+        "......../"
+        "....k.../"
+        "........ "
+        "b - - 0 0";
     Position pos;
-    pos.load_inline_ascii(board, BLACK, cstate);
+    // pos.load_inline_ascii(board, BLACK, c_rights);
+    std::stringstream ss(board);
+    notation::load_fen(pos, ss);
     test_absolute_pins(pos);
     printf("Done.\n");
 
     printf("Testing get_attackers...\n");
     const char* board1 =
-        "K......."
-        ".....Q.."
-        ".NP.PP.."
-        "...k...."
-        "....P..."
-        "..nRN..."
-        "........"
-        "........";
+        "K......./"
+        ".....Q../"
+        ".NP.PP../"
+        "...k..../"
+        "....P.../"
+        "..nRN.../"
+        "......../"
+        "........ "
+        "w - - 0 0";
+    std::istringstream stream1(board1);
     Position pos1;
-    pos1.load_inline_ascii(board1, BLACK, cstate);
+    notation::load_fen(pos1, stream1);
     Square king_sq = bboard::bitscan_fwd(pos1.get_bitboard(WHITE, KING));
     test_get_attackers(pos1, king_sq, BLACK);
 
@@ -58,19 +63,11 @@ int main(int argc, char* argv[]) {
     printf("Done.\n");
 
     printf("Testing movegen(0 checks)...\n");
-    // const char* board2 =
-    //     "........"
-    //     "...K..P."
-    //     "........"
-    //     "...B...."
-    //     "......R."
-    //     "........"
-    //     ".....Np."
-    //     "....k...";
-    char board2[256];
-    utils::read_and_trim("./fixtures/enpassant_c1.board", board2);
     Position pos2;
-    pos2.load_inline_ascii(board2, WHITE, cstate, 'f' - 'a');
+    std::ifstream infile;
+    infile.open("./fixtures/enpassant_check.fen");
+    assert(infile.good());
+    notation::load_fen(pos2, infile);
     std::vector<Move> moves = gen_legal_moves(pos2);
     printf("Found %zd legal moves:\n", moves.size());
     for (Move mv : moves) {

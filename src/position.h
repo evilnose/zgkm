@@ -11,14 +11,10 @@ class Position {
 
     Position(std::string serial);
 
-	// TODO remove
-    void load_inline_ascii(std::string ascii, Color side2move,
-                           const CastleState& cstate, int enpassant_file = -1);
+    // Position(std::string ascii, Color side2move, const CastlingRights& cstate);
 
-    // Position(std::string ascii, Color side2move, const CastleState& cstate);
-
-    inline bool has_castling_rights(CastleState cs) const {
-        return cs & ~castle_state;
+    inline bool has_castling_rights(CastlingRights cr) const {
+        return cr & ~castling_rights;
     }
 
     void apply_move(const Move&);
@@ -65,14 +61,16 @@ class Position {
 
 	void place_piece(Color c, PieceType piece, Square sq);
 
-	inline void set_castle_state(CastleState cstate) {
-		castle_state = cstate;
+	inline void set_castling_rights(CastlingRights c_rights) {
+		castling_rights = c_rights;
 	}
 
 	// Note: sq is the TARGET CAPTURE square of the en-passant pawn
-	// i.e. behind it
+	// i.e. behind it. If sq == N_SQUARES, unset enpassant_mask
 	inline void set_enpassant(Square sq) {
-		enpassant_mask = bboard::mask_square(sq);
+        if (sq != N_SQUARES) {
+            enpassant_mask = bboard::mask_square(sq);
+        }
 	}
 
 	inline void set_halfmove_clock(int clock) {
@@ -85,7 +83,7 @@ class Position {
 
    private:
     Color side_to_move;
-    CastleState castle_state;
+    CastlingRights castling_rights;
     Bitboard piece_bitboards[N_PIECE_TYPES];
     Bitboard color_bitboards[N_COLORS];
     /* zero if no en-passant last ply, else the capture mask of en-passant

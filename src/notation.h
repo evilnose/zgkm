@@ -1,10 +1,11 @@
 #pragma once
 /* Parsing/generating strings as representation of positions/move history */
+#include "types.h"
+#include "position.h"
 
 #include <string>
 #include <vector>
-#include "types.h"
-#include "position.h"
+#include <istream>
 
 using std::string;
 using std::vector;
@@ -33,8 +34,14 @@ namespace notation {
 			const Position& pos, bool checking, bool mating);
 
 	/*
-	 * load verbose FEN format string str into Position pos
+	 * load FEN format string str into Position pos
 	 * NOTE: does not check validity
+     * NOTE: this is less strict than standard FEN - 
+     * the separator between rows, while conventionally
+     * the character '/', does not matter here. And
+     * one can use '.' to represent one empty square
+     * for visual purposes.
 	 */
-	bool load_vfen(Position& pos, const char* str);
+	void load_fen(Position& pos, std::istream& ins);
+
 }

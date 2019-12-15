@@ -11,6 +11,9 @@ static bool is_slider_table[]{0, 0, 0, 1, 1, 1, 0, 0};
 namespace utils {
 inline int sq_rank(Square sq) { return sq / 8; }
 inline int sq_file(Square sq) { return sq % 8; }
+inline Square make_square(int rank, int file) {
+    return Square(rank * 8 + file);
+}
 
 inline Square to_square(uint8_t val) {
     return static_cast<Square>(val);
@@ -32,8 +35,8 @@ inline bool is_slider(PieceType pt) {
     return is_slider_table[(int)pt];
 }
 
-inline CastleState to_castle_state(Color c, BoardSide side) {
-	return (CastleState)((1 << (2 * (int)c)) + (1 << (int)side));
+inline CastlingRights to_castling_rights(Color c, BoardSide side) {
+	return (CastlingRights)((1 << (2 * (int)c)) + (1 << (int)side));
 }
 
 // /* read from file and trim all whitespace; output to buf */

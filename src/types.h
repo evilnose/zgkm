@@ -5,6 +5,8 @@
 using Bitboard = uint64_t;
 using I8 = int8_t;
 using U64 = uint64_t;
+using Move = unsigned short;
+using CastlingRights = unsigned short;
 
 constexpr Bitboard RANK_A = 0xFF;
 constexpr Bitboard RANK_B = RANK_A << 8;
@@ -95,7 +97,6 @@ bits 6-11:  source square (64) / castling side
 bits 12-13: move type (4)
 bits 14-15: promotion piece (4; 0->KNIGHT, ... 3->QUEEN)
 */
-using Move = unsigned short;
 constexpr int MOVE_LEN = 16;
 constexpr Move MOVE_TARGET_MASK = 0xFC00;
 constexpr Move MOVE_SOURCE_MASK = 0x3F0;
@@ -138,11 +139,9 @@ inline Move create_castling_move(Color c, BoardSide side) {
     return (((Move)CASTLING_MOVE) << 2) | ((Move)side << 4) | ((Move)c << 10);
 }
 
-enum CastleState {
-    WHITE_O_O = 1 << 0,
-    WHITE_O_O_O = 1 << 1,
-    BLACK_O_O = 1 << 2,
-    BLACK_O_O_O = 1 << 3
-};
-
-extern CastleState init_cstate;
+extern CastlingRights WHITE_O_O;
+extern CastlingRights WHITE_O_O_O;
+extern CastlingRights BLACK_O_O;
+extern CastlingRights BLACK_O_O_O;
+extern CastlingRights NO_CASTLING_RIGHTS;
+extern CastlingRights ALL_CASTLING_RIGHTS;
