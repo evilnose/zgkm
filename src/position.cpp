@@ -23,8 +23,9 @@ Position::Position()
 	  fullmove_number{1}
 	  {}
 
-void Position::apply_move(const Move&) {
+void Position::apply_move(const Move& move) {
     // TODO
+
 }
 
 Bitboard Position::get_attackers(Square target_sq, Color atk_color) const {
