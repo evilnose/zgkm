@@ -71,4 +71,9 @@ inline Color opposite_color(Color c) {
 }
 
 std::string repr(Bitboard board);
+
+inline int pawn_direction(Color c) {
+    return 1 - static_cast<int>(c) * 2;
 }
+}
+

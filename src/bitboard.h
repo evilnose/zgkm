@@ -74,10 +74,9 @@ inline Bitboard pawn_attacks(Square sq, Color atk_color) {
 }
 
 inline Bitboard pawn_pushes(Square sq, Color atk_color) {
-    int d_rank = 1 - static_cast<int>(atk_color) * 2;
+    int d_rank = utils::pawn_direction(atk_color);
     // return 0 if promotion
-    return bboard::mask_square(utils::to_square(sq + d_rank * 8)) &
-           ~PROMOTION_RANKS;
+    return bboard::mask_square(utils::to_square(sq + d_rank * 8));
 }
 
 inline Bitboard knight_attacks(Square sq) { return n_attack_table[sq]; }

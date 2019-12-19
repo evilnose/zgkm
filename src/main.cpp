@@ -64,8 +64,10 @@ int main(int argc, char* argv[]) {
 
     printf("Testing movegen(0 checks)...\n");
     Position pos2;
+    const char* fname2 = "./fixtures/promotions.fen"; 
     std::ifstream infile;
-    infile.open("./fixtures/enpassant_check.fen");
+    infile.open(fname2);
+    printf("Reading from %s...\n", fname2);
     assert(infile.good());
     notation::load_fen(pos2, infile);
     std::vector<Move> moves = gen_legal_moves(pos2);

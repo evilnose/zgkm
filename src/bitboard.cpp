@@ -223,7 +223,7 @@ void init_attack_tables(void) {
     for (Color c : colors) {
         int d_rank = c == WHITE ? 1 : -1;
         // actually we can omit the last row for each color since a pawn cannot
-        // possibly be there.
+        // possibly be there, but that doesn't make a huge difference
         for (Square sq = SQ_A1; sq <= SQ_H8; sq++) {
             mask = 0ULL;
 

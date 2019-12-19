@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cinttypes>
+#include <cassert>
 
 using Bitboard = uint64_t;
 using I8 = int8_t;
@@ -92,16 +93,17 @@ struct Move {
 */
 /*
 Move representation
-bits 0-5:   target square (64) / color if castling move
-bits 6-11:  source square (64) / castling side
-bits 12-13: move type (4)
-bits 14-15: promotion piece (4; 0->KNIGHT, ... 3->QUEEN)
+bits 0-1: promotion piece (4; 0->KNIGHT, ... 3->QUEEN)
+bits 2-3: move type (4)
+bits 4-9:  source square (64) / castling side
+bits 10-15:   target square (64) / color if castling move
 */
 constexpr int MOVE_LEN = 16;
 constexpr Move MOVE_TARGET_MASK = 0xFC00;
 constexpr Move MOVE_SOURCE_MASK = 0x3F0;
 constexpr Move MOVE_PROMOTION_MASK = 0x3;
 
+// Move helper functions
 inline Square move_target(Move mv) {
     return (Square)(mv >> (MOVE_LEN - 6));
 }
@@ -126,17 +128,25 @@ inline PieceType move_promotion(Move mv) {
     return (PieceType)((mv & MOVE_PROMOTION_MASK) + 2);
 }
 
-inline Move create_enpassant(Square tar, Square src, MoveType type) {
+// move helper functions
+inline Move create_enpassant(Square tgt, Square src) {
     return (((Move)ENPASSANT) << 2) | ((Move)src << 4) |
-           ((Move)tar << 10);
+           ((Move)tgt << 10);
 }
 
-inline Move create_normal_move(Square tar, Square src) {
-    return (((Move)NORMAL_MOVE) << 2) | ((Move)src << 4) | ((Move)tar << 10);
+inline Move create_normal_move(Square tgt, Square src) {
+    return (((Move)NORMAL_MOVE) << 2) | ((Move)src << 4) | ((Move)tgt << 10);
 }
 
 inline Move create_castling_move(Color c, BoardSide side) {
     return (((Move)CASTLING_MOVE) << 2) | ((Move)side << 4) | ((Move)c << 10);
+}
+
+inline Move create_promotion_move(Square tgt, Square src, PieceType target_piece) {
+    assert(target_piece == QUEEN || target_piece == ROOK || target_piece == KNIGHT ||
+            target_piece == BISHOP);
+    return ((Move)target_piece - 2) | ((Move)PROMOTION << 2) | ((Move)src << 4)
+        | ((Move)tgt << 10);
 }
 
 extern CastlingRights WHITE_O_O;
@@ -145,3 +155,4 @@ extern CastlingRights BLACK_O_O;
 extern CastlingRights BLACK_O_O_O;
 extern CastlingRights NO_CASTLING_RIGHTS;
 extern CastlingRights ALL_CASTLING_RIGHTS;
+

@@ -49,17 +49,37 @@ inline void add_moves(vector<Move>& moves, Square src, Bitboard tgts) {
     }
 }
 
+// add all possible promotion moves
+inline void add_promotion_moves(vector<Move>& moves, Square src, Bitboard tgts) {
+    while (tgts != 0ULL) {
+        Square sq = bboard::bitscan_fwd(tgts);
+        for (PieceType piece = KNIGHT; piece <= QUEEN; piece = (PieceType)(piece + 1)) {
+            Move tmp = create_promotion_move(sq, src, piece);
+            moves.push_back(tmp);
+        }
+        tgts &= ~bboard::mask_square(sq);
+    }
+}
+
 inline void add_enpassant(vector<Move>& moves, Square src, Square tgt) {
-    moves.push_back(create_enpassant(tgt, src, ENPASSANT));
+    moves.push_back(create_enpassant(tgt, src));
 }
 
 inline void add_castling_move(vector<Move>& moves, Color c, BoardSide side) {
     moves.push_back(create_castling_move(c, side));
 }
 
+/*
+inline void add_specific_promotion_move(vector<Move>& moves, Square src, Square tgt, 
+        PieceType target_piece) {
+    moves.push_back(create_promotion_move(tgt, src, target_piece));
+}
+*/
+
 // returns whether (squares are on same rank OR squares are on same file)
 inline bool same_line(Square sq1, Square sq2) {
-    return (utils::sq_rank(sq1) == utils::sq_rank(sq2)) || (utils::sq_file(sq1) == utils::sq_file(sq2));
+    return (utils::sq_rank(sq1) == utils::sq_rank(sq2)) ||
+        (utils::sq_file(sq1) == utils::sq_file(sq2));
 }
 }  // namespace
 
@@ -139,7 +159,6 @@ endfunc
 
 */
 vector<Move> gen_legal_moves(const Position& pos) {
-    // TODO castling
     // TODO promotion
     // TODO weird enpassant pin
     Color atk_c = pos.get_side_to_move();
@@ -187,13 +206,18 @@ vector<Move> gen_legal_moves(const Position& pos) {
             // can be blocked by pieces on the D/E rank.
             pawn_mask &= ~all_occ;
 
-            add_moves(moves, sq,
-                      pawn_mask | (bboard::pawn_attacks(sq, atk_c) & def_occ));
+            // if target rank is 7 or 0, this is a promotion move
+            if ((utils::sq_rank(sq) + utils::pawn_direction(atk_c)) % 7 == 0) {
+                add_promotion_moves(moves, sq,
+                          pawn_mask | (bboard::pawn_attacks(sq, atk_c) & def_occ));
+            } else {
+                add_moves(moves, sq,
+                          pawn_mask | (bboard::pawn_attacks(sq, atk_c) & def_occ));
 
-            if (bboard::pawn_attacks(sq, atk_c) & enpassant) {
-                add_enpassant(moves, sq, enpassant_sq);
+                if (bboard::pawn_attacks(sq, atk_c) & enpassant) {
+                    add_enpassant(moves, sq, enpassant_sq);
+                }
             }
-
             free_pawns &= ~bboard::mask_square(sq);
         }
 
