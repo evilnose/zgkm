@@ -9,7 +9,18 @@ class Position {
    public:
     Position();
 
-    Position(std::string serial);
+	/*
+	 * load FEN format string str into Position pos
+	 * NOTE: does not check validity
+     * NOTE: this is less strict than standard FEN - 
+     * the separator between rows, while conventionally
+     * the character '/', does not matter here. And
+     * one can use '.' to represent one empty square
+     * for visual purposes.
+	 */
+    Position(std::istream& fen_is);
+
+    void load_fen(std::istream& fen_is);
 
     // Position(std::string ascii, Color side2move, const CastlingRights& cstate);
 
@@ -17,7 +28,11 @@ class Position {
         return cr & ~castling_rights;
     }
 
-    void apply_move(const Move&);
+    inline CastlingRights get_castling_rights() const {
+        return castling_rights;
+    }
+
+    void apply_move(Move);
 
     // std::string to_ascii() const;
 
@@ -39,12 +54,12 @@ class Position {
         return piece_bitboards[ANY_PIECE];
     }
 
-    bool get_piece_at(Square sq, Color& c_out, PieceType& p_out) const;
+    bool get_piece(Square sq, Color& c_out, PieceType& p_out) const;
 
     Bitboard get_attackers(Square target_sq, Color atk_color) const;
 
     /*
-    Return a bitboard mask of all the squares that c is attacking
+    Return a bitboard maskset of all the squares that c is attacking
     NOTE this ignores the king for sliding pieces occupancy
     */
     Bitboard get_attack_mask(Color c) const;
@@ -59,7 +74,9 @@ class Position {
 	// and starting castling rights
 	void clear();
 
-	void place_piece(Color c, PieceType piece, Square sq);
+	void set_piece(Square sq, Color c, PieceType piece);
+
+    // void remove_piece(Square sq);
 
 	inline void set_castling_rights(CastlingRights c_rights) {
 		castling_rights = c_rights;
@@ -70,6 +87,8 @@ class Position {
 	inline void set_enpassant(Square sq) {
         if (sq != N_SQUARES) {
             enpassant_mask = bboard::mask_square(sq);
+        } else {
+            enpassant_mask = 0ULL;
         }
 	}
 
@@ -77,9 +96,22 @@ class Position {
 		halfmove_clock = clock;
 	}
 
+    inline int get_halfmove_clock() const {
+        return halfmove_clock;
+    }
+
 	inline void set_fullmove_number(int number) {
 		fullmove_number = number;
 	}
+
+    inline int get_fullmove_number() const {
+        return fullmove_number;
+    }
+
+    // returns whether king of the side to move is in check
+    bool is_checking();
+
+    bool is_game_over();
 
    private:
     Color side_to_move;
@@ -96,5 +128,7 @@ class Position {
 	int halfmove_clock; 
 	int fullmove_number;
 };
+
+static std::string STARTING_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
 void test_get_attackers(Position& pos, Square sq, Color atk_color);

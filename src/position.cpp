@@ -5,7 +5,6 @@
 
 #include <cassert>
 #include <cctype>
-
 #include <istream>
 
 using std::string;
@@ -19,13 +18,211 @@ Position::Position()
       piece_bitboards{},
       color_bitboards{},
       enpassant_mask{},
-	  halfmove_clock{0},
-	  fullmove_number{1}
-	  {}
+      halfmove_clock{0},
+      fullmove_number{1} {}
 
-void Position::apply_move(const Move& move) {
-    // TODO
+Position::Position(std::istream& fen_is)
+    : piece_bitboards{}, color_bitboards{} {
+    load_fen(fen_is);
+}
 
+void Position::load_fen(std::istream& fen_is) {
+    for (int row = 0; row < 8; row++) {
+        int col = 0;
+        while (col < 8) {
+            // multiplied by 9 to skip the separator
+            char piece_char;
+            fen_is >> piece_char;
+            if (std::isdigit(piece_char)) {
+                col += (piece_char - '0');
+                assert(col <= 8);
+            } else {
+                Color c;
+                if (std::isupper(piece_char)) {
+                    c = WHITE;
+                    piece_char = std::tolower(piece_char);
+                } else {
+                    c = BLACK;
+                }
+                Square sq = utils::make_square(7 - row, col);
+                switch (piece_char) {
+                    case 'p':
+                        set_piece(sq, c, PAWN);
+                        break;
+                    case 'b':
+                        set_piece(sq, c, BISHOP);
+                        break;
+                    case 'n':
+                        set_piece(sq, c, KNIGHT);
+                        break;
+                    case 'r':
+                        set_piece(sq, c, ROOK);
+                        break;
+                    case 'q':
+                        set_piece(sq, c, QUEEN);
+                        break;
+                    case 'k':
+                        set_piece(sq, c, KING);
+                        break;
+                    default:
+                        if (piece_char != '.') {
+                            printf("%c\n", piece_char);
+                        }
+                        assert(piece_char == '.');
+                        break;
+                }
+                col++;
+            }
+        }
+        // ignore row delimiter
+        fen_is.ignore();
+    }
+    char side_to_move;
+    std::string castling_rights;
+    std::string enpassant_square;
+    std::string halfmove_clock;
+    std::string fullmove_number;
+    fen_is >> side_to_move;
+    fen_is >> castling_rights >> enpassant_square;
+    fen_is >> halfmove_clock >> fullmove_number;
+    assert(side_to_move == 'w' || side_to_move == 'b');
+
+    set_side_to_move((Color)(side_to_move == 'b'));
+
+    if (castling_rights != "-") {
+        assert(castling_rights.length() <= 4);
+        CastlingRights c_rights = NO_CASTLING_RIGHTS;
+        for (auto it = castling_rights.begin(); it != castling_rights.end();
+             it++) {
+            switch (*it) {
+                case 'k':
+                    c_rights |= WHITE_OO;
+                    break;
+                case 'K':
+                    c_rights |= BLACK_OO;
+                    break;
+                case 'q':
+                    c_rights |= WHITE_OOO;
+                    break;
+                case 'Q':
+                    c_rights |= BLACK_OOO;
+                    break;
+                default:
+                    assert(false);
+                    break;
+            }
+        }
+        set_castling_rights(c_rights);
+    }
+
+    if (enpassant_square != "-") {
+        assert(enpassant_square.length() == 2);
+        set_enpassant(utils::make_square(enpassant_square[1] - '1',
+                                         enpassant_square[0] - 'a'));
+    } else {
+        // unset en-passant
+        set_enpassant(N_SQUARES);
+    }
+
+    set_halfmove_clock(std::stoi(halfmove_clock));
+    set_fullmove_number(std::stoi(fullmove_number));
+}
+
+void Position::apply_move(Move move) {
+    MoveType type = get_move_type(move);
+
+    if (type == CASTLING_MOVE) {
+        Color color = get_move_castle_color(move);
+        BoardSide side = get_move_castle_side(move);
+        // TODO maybe hardcoding in / constexpr'ing mask_square makes this
+        // faster?
+        Bitboard king_target =
+            bboard::mask_square(utils::king_castle_target(color, side));
+        Bitboard rook_target =
+            bboard::mask_square(utils::rook_castle_target(color, side));
+        Bitboard king_source =
+            bboard::mask_square(utils::KING_INIT_SQUARES[color]);
+        Bitboard rook_source =
+            bboard::mask_square(utils::rook_castle_source(color, side));
+
+        // remove rook
+        piece_bitboards[ROOK] &= ~rook_source;
+        piece_bitboards[ANY_PIECE] &= ~rook_source;
+        color_bitboards[color] &= ~rook_source;
+        // remove king
+        piece_bitboards[KING] &= ~king_source;
+        piece_bitboards[ANY_PIECE] &= ~king_source;
+        color_bitboards[color] &= ~king_source;
+        // add rook
+        piece_bitboards[ROOK] |= rook_target;
+        piece_bitboards[ANY_PIECE] |= rook_target;
+        color_bitboards[color] |= rook_target;
+        // add king
+        piece_bitboards[KING] |= king_target;
+        piece_bitboards[ANY_PIECE] |= king_target;
+        color_bitboards[color] |= king_target;
+    } else {
+        Square src = get_move_source(move);
+        Square tgt = get_move_target(move);
+        Bitboard src_mask = bboard::mask_square(src);
+        Bitboard tgt_mask = bboard::mask_square(tgt);
+        Color src_color;
+        Color tgt_color;
+        PieceType src_piece;
+        PieceType tgt_piece;
+
+        // remove captured piece
+        if (get_all_bitboard() & tgt_mask) {
+            if (get_piece(tgt, tgt_color, tgt_piece)) {
+                // only remove if piece exists
+                piece_bitboards[tgt_piece] &= ~tgt_mask;
+                color_bitboards[tgt_color] &= ~tgt_mask;
+                // do not apply mask to ANY_PIECE because
+                // new piece replaces captured piece
+            }
+        }
+
+        // remove src piece from its src location
+        // do this for all move types here
+        bool good = get_piece(src, src_color, src_piece);
+        if (!good) {
+            get_piece(src, src_color, src_piece);
+        }
+        assert(good);
+        piece_bitboards[src_piece] &= ~src_mask;
+        piece_bitboards[ANY_PIECE] &= ~src_mask;
+        color_bitboards[src_color] &= ~src_mask;
+
+        // update src piece type if promotion
+        if (type == PROMOTION) {
+            src_piece = get_move_promotion(move);
+        }
+
+        // place src piece at its new location
+        piece_bitboards[src_piece] |= tgt_mask;
+        piece_bitboards[ANY_PIECE] |= tgt_mask;
+        color_bitboards[src_color] |= tgt_mask;
+
+        // TODO no-branch if?
+        if (src_piece == PAWN && abs((int)tgt - (int)src) == 16) {
+            enpassant_mask = bboard::mask_square((Square)(((int)tgt + (int)src)/2));
+        } else {
+            enpassant_mask = 0ULL;
+        }
+
+        // if en-passant, update target square
+        // and remove captured piece at square
+        if (type == ENPASSANT) {
+            // change tgt to hold the square of the pawn to
+            // be captured en-passant
+            utils::move_square(tgt, utils::pawn_direction(src_color), 0);
+            tgt_mask = bboard::mask_square(tgt);
+            // update ANY_PIECE because tgt square vanishes
+            piece_bitboards[ANY_PIECE] &= ~tgt_mask;
+        }
+    }
+
+    side_to_move = utils::opposite_color(side_to_move);
 }
 
 Bitboard Position::get_attackers(Square target_sq, Color atk_color) const {
@@ -58,7 +255,7 @@ Bitboard Position::get_attackers(Square target_sq, Color atk_color) const {
 }
 
 // TODO add more members in Position to make this more optimized
-bool Position::get_piece_at(Square sq, Color& c_out, PieceType& p_out) const {
+bool Position::get_piece(Square sq, Color& c_out, PieceType& p_out) const {
     Bitboard mask = bboard::mask_square(sq);
     Color c;
     if (mask & get_color_bitboard(WHITE)) {
@@ -100,42 +297,37 @@ Bitboard Position::get_attack_mask(Color col) const {
     // pawns
     Bitboard pawns = get_bitboard(col, PAWN);
     while (pawns != 0ULL) {
-        Square sq = bboard::bitscan_fwd(pawns);
+        Square sq = bboard::bitscan_fwd_remove(pawns);
         mask |= bboard::pawn_attacks(sq, col);
-        pawns &= ~bboard::mask_square(sq);
     }
 
     // knights
     Bitboard knights = get_bitboard(col, KNIGHT);
     while (knights != 0ULL) {
-        Square sq = bboard::bitscan_fwd(knights);
+        Square sq = bboard::bitscan_fwd_remove(knights);
         mask |= bboard::knight_attacks(sq);
-        knights &= ~bboard::mask_square(sq);
     }
 
     // bishops
     Bitboard bishops = get_bitboard(col, BISHOP);
     while (bishops != 0ULL) {
-        Square sq = bboard::bitscan_fwd(bishops);
+        Square sq = bboard::bitscan_fwd_remove(bishops);
         mask |= bboard::bishop_attacks(sq, occ);
-        bishops &= ~bboard::mask_square(sq);
     }
 
     // rooks
     Bitboard rooks = get_bitboard(col, ROOK);
     while (rooks != 0ULL) {
-        Square sq = bboard::bitscan_fwd(rooks);
+        Square sq = bboard::bitscan_fwd_remove(rooks);
         mask |= bboard::rook_attacks(sq, occ);
-        rooks &= ~bboard::mask_square(sq);
     }
 
     // queens
     Bitboard queens = get_bitboard(col, QUEEN);
     while (queens != 0ULL) {
-        Square sq = bboard::bitscan_fwd(queens);
+        Square sq = bboard::bitscan_fwd_remove(queens);
         mask |= bboard::rook_attacks(sq, occ);
         mask |= bboard::bishop_attacks(sq, occ);
-        queens &= ~bboard::mask_square(sq);
     }
 
     // king
@@ -145,16 +337,33 @@ Bitboard Position::get_attack_mask(Color col) const {
     return mask;
 }
 
-void Position::clear() {
+void Position::clear() {}
 
-}
-
-void Position::place_piece(Color c, PieceType piece, Square sq) {
-	Bitboard mask = bboard::mask_square(sq);
-	piece_bitboards[(int)piece] |= mask;
+void Position::set_piece(Square sq, Color c, PieceType piece) {
+    Bitboard mask = bboard::mask_square(sq);
+    piece_bitboards[(int)piece] |= mask;
     piece_bitboards[ANY_PIECE] |= mask;
-	color_bitboards[(int)c] |= mask;
+    color_bitboards[(int)c] |= mask;
 }
+
+bool Position::is_checking() {
+    Color atk_c = get_side_to_move();
+    Square king_sq = bboard::bitscan_fwd(get_bitboard(atk_c, KING));
+    return get_attackers(king_sq, utils::opposite_color(atk_c)) != 0ULL;
+}
+
+// TODO this is actually a big deal
+bool Position::is_game_over() {
+    // TODO once finished, update pretty_move
+    return false;
+}
+
+// void Position::remove_piece(Square sq, Color c, PieceType piece) {
+//     Bitboard mask = ~bboard::mask_square(sq);
+//     piece_bitboards[(int)piece] &= mask;
+//     piece_bitboards[ANY_PIECE] &= mask;
+//     color_bitboards[(int)c] &= mask;
+// }
 
 #include <iostream>
 void test_get_attackers(Position& pos, Square sq, Color atk_color) {

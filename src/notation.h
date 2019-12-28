@@ -7,9 +7,6 @@
 #include <vector>
 #include <istream>
 
-using std::string;
-using std::vector;
-
 /*
  * Custom verbose FEN format for debugging (.vfen)
  *
@@ -25,23 +22,23 @@ namespace notation {
         return 'a' + f;
     }
 
+    inline std::string square_str(Square sq) {
+        return std::to_string(utils::sq_rank(sq) + 1) + file_char(sq);
+    }
+
     /*
     Return move string in Standard Algebraic Notation.
     legal_moves:    All legal moves
     move_idx:       Index of the move that should be printed
     */
-    string pretty_move(Move mv, const std::vector<Move>& legal_moves,
+    std::string pretty_move(Move mv, const std::vector<Move>& legal_moves,
 			const Position& pos, bool checking, bool mating);
 
-	/*
-	 * load FEN format string str into Position pos
-	 * NOTE: does not check validity
-     * NOTE: this is less strict than standard FEN - 
-     * the separator between rows, while conventionally
-     * the character '/', does not matter here. And
-     * one can use '.' to represent one empty square
-     * for visual purposes.
-	 */
-	void load_fen(Position& pos, std::istream& ins);
+	// void load_fen(Position& pos, std::istream& ins);
 
+    std::string to_fen(const Position& pos);
+
+    // same as to_fen but with '/' replaced with '\n'
+    // and all empty squares represented by '.'
+    std::string to_aligned_fen(const Position& pos);
 }

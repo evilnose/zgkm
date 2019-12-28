@@ -25,20 +25,21 @@ inline char piece_char(PieceType piece) {
     }
 }
 
-string notation::pretty_move(Move mv, const std::vector<Move>& legal_moves,
-                             const Position& pos, bool checking, bool mating) {
+std::string notation::pretty_move(Move mv, const std::vector<Move>& legal_moves,
+                                  const Position& pos, bool checking,
+                                  bool mating) {
     char buf[8] = "O-\0\0\0\0\0";  // kingside castle by default
     int bufidx = 0;
-    MoveType mt = move_type(mv);
-    Square tgt_sq = move_target(mv);
+    MoveType mt = get_move_type(mv);
+    Square tgt_sq = get_move_target(mv);
     if (mt == NORMAL_MOVE || mt == ENPASSANT || mt == PROMOTION) {
         bool is_capture =
             (pos.get_all_bitboard() & bboard::mask_square(tgt_sq)) ||
             mt == ENPASSANT;
         Color color;
         PieceType piece;
-        Square src_sq = move_source(mv);
-        bool got = pos.get_piece_at(src_sq, color, piece);
+        Square src_sq = get_move_source(mv);
+        bool got = pos.get_piece(src_sq, color, piece);
         assert(got);
         if (piece == PAWN) {
             if (is_capture) {
@@ -49,15 +50,19 @@ string notation::pretty_move(Move mv, const std::vector<Move>& legal_moves,
         }
 
         Bitboard occ = pos.get_bitboard(color, piece);
-        if (!bboard::one_bit(occ)) {
+        if (!bboard::one_bit(occ) && piece != PAWN) {
             char ambiguity = 0;  // 1 if some other piece is on the same rank, 2
                                  // if same file, 3 if both
             for (const Move& other_mv : legal_moves) {
                 if (other_mv == mv) continue;
 
-                Square other_src = move_source(other_mv);
-                if (pos.get_bitboard(color, piece) &
-                    bboard::mask_square(other_src)) {
+                Square other_src = get_move_source(other_mv);
+                // if there is another move with same target sq as this move and
+                // other move source has same piece and color as this piece,
+                // consider ambiguity
+                if (get_move_target(other_mv) == tgt_sq &&
+                    (pos.get_bitboard(color, piece) &
+                     bboard::mask_square(other_src))) {
                     ambiguity |=
                         utils::sq_rank(src_sq) == utils::sq_rank(other_src);
                     ambiguity |=
@@ -66,16 +71,11 @@ string notation::pretty_move(Move mv, const std::vector<Move>& legal_moves,
                 }
             }
 
-            switch (ambiguity) {
-                case 0:
-                case 2:
-                    buf[bufidx++] = file_char(utils::sq_file(src_sq));
-                    break;
-                case 3:
-                    buf[bufidx++] = file_char(utils::sq_file(src_sq));
-                case 1:
-                    buf[bufidx++] = '1' + utils::sq_rank(src_sq);
-                    break;
+            if (ambiguity & 2) {
+                buf[bufidx++] = file_char(utils::sq_file(src_sq));
+            }
+            if (ambiguity & 1) {
+                buf[bufidx++] = '1' + utils::sq_rank(src_sq);
             }
         }
 
@@ -90,7 +90,7 @@ string notation::pretty_move(Move mv, const std::vector<Move>& legal_moves,
         // Promotion
         if (mt == PROMOTION) {
             buf[bufidx++] = '=';
-            buf[bufidx++] = piece_char(move_promotion(mv));
+            buf[bufidx++] = piece_char(get_move_promotion(mv));
         }
 
         // Final suffix
@@ -106,109 +106,90 @@ string notation::pretty_move(Move mv, const std::vector<Move>& legal_moves,
         buf[4] = queenside * 'O';
     }
 
-    return string(buf);
+    return std::string(buf);
 }
 
-/*
- * load FEN format string str into Position pos
- * NOTE: does not check validity
- */
-void notation::load_fen(Position& pos, std::istream& ins) {
-    for (int row = 0; row < 8; row++) {
-        int col = 0;
-        while (col < 8) {
-            // multiplied by 9 to skip the separator
-            char piece_char;
-            ins >> piece_char;
-            if (std::isdigit(piece_char)) {
-                col += (piece_char - '0');
-                assert(col <= 8);
-            } else {
-                Color c;
-                if (std::isupper(piece_char)) {
-                    c = BLACK;
-                    piece_char = std::tolower(piece_char);
-                } else {
-                    c = WHITE;
-                }
-                Square sq = utils::make_square(7 - row, col);
-                switch (piece_char) {
-                    case 'p':
-                        pos.place_piece(c, PAWN, sq);
+std::string notation::to_fen(const Position& pos) {
+    std::string ret;
+    ret.reserve(128);
+    // TODO
+    return "to_fen() NOT FINISHED\n";
+}
+
+std::string notation::to_aligned_fen(const Position& pos) {
+    std::string board(72, '.');
+    for (int rank = 0; rank < 7; rank++) {
+        board[rank * 9 + 8] = '\n';
+    }
+    // last line is followed by a space instead of a newline
+    board[71] = ' ';
+    for (Color color = WHITE; color != N_COLORS; color = (Color)(color + 1)) {
+        for (PieceType piece = PAWN; piece != ANY_PIECE;
+             piece = (PieceType)(piece + 1)) {
+            Bitboard mask = pos.get_bitboard(color, piece);
+            while (mask != 0ULL) {
+                Square sq = bboard::bitscan_fwd_remove(mask);
+                char c;
+                switch (piece) {
+                    case PAWN:
+                        c = 'p';
                         break;
-                    case 'b':
-                        pos.place_piece(c, BISHOP, sq);
+                    case KNIGHT:
+                        c = 'n';
                         break;
-                    case 'n':
-                        pos.place_piece(c, KNIGHT, sq);
+                    case BISHOP:
+                        c = 'b';
                         break;
-                    case 'r':
-                        pos.place_piece(c, ROOK, sq);
+                    case ROOK:
+                        c = 'r';
                         break;
-                    case 'q':
-                        pos.place_piece(c, QUEEN, sq);
+                    case QUEEN:
+                        c = 'q';
                         break;
-                    case 'k':
-                        pos.place_piece(c, KING, sq);
+                    case KING:
+                        c = 'k';
                         break;
                     default:
-                        if (piece_char != '.') {
-                            printf("%c\n", piece_char);
-                        }
-                        assert(piece_char == '.');
+                        assert(false);
                         break;
                 }
-                col++;
+                if (color == WHITE) {
+                    c = std::toupper(c);
+                }
+                board[(7 - utils::sq_rank(sq)) * 9 + utils::sq_file(sq)] = c;
             }
         }
-        // ignore row delimiter
-        ins.ignore();
-    }
-    char side_to_move;
-    std::string castling_rights;
-    std::string enpassant_square;
-    std::string halfmove_clock;
-    std::string fullmove_number;
-    ins >> side_to_move;
-    ins >> castling_rights >> enpassant_square;
-    ins >> halfmove_clock >> fullmove_number;
-    assert(side_to_move == 'w' || side_to_move == 'b');
-
-    pos.set_side_to_move((Color)(side_to_move == 'b'));
-    
-    if (castling_rights != "-") {
-        assert(castling_rights.length() <= 4);
-        CastlingRights c_rights = NO_CASTLING_RIGHTS;
-        for (auto it = castling_rights.begin(); it != castling_rights.end(); it++) {
-            switch (*it) {
-                case 'k':
-                    c_rights |= WHITE_O_O;
-                    break;
-                case 'K':
-                    c_rights |= BLACK_O_O;
-                    break;
-                case 'q':
-                    c_rights |= WHITE_O_O_O;
-                    break;
-                case 'Q':
-                    c_rights |= BLACK_O_O_O;
-                    break;
-                default:
-                    assert(false);
-                    break;
-            }
-        }
-        pos.set_castling_rights(c_rights);
     }
 
-    if (enpassant_square != "-") {
-        assert(enpassant_square.length() == 2);
-        pos.set_enpassant(utils::make_square(enpassant_square[1] - '1', enpassant_square[0] - 'a'));
+    std::string postfix = pos.get_side_to_move() == WHITE ? "w " : "b ";
+    CastlingRights rights = pos.get_castling_rights();
+    if (rights == NO_CASTLING_RIGHTS) {
+        postfix += "-";
     } else {
-        // unset en-passant
-        pos.set_enpassant(N_SQUARES);
+        if (rights & BLACK_OO) {
+            postfix += "K";
+        }
+        if (rights & BLACK_OOO) {
+            postfix += "Q";
+        }
+        if (rights & WHITE_OO) {
+            postfix += "k";
+        }
+        if (rights & WHITE_OOO) {
+            postfix += "q";
+        }
+    }
+    postfix += " ";
+
+    Bitboard enpassant = pos.get_enpassant();
+    if (enpassant) {
+        Square enp_sq = bboard::bitscan_fwd(enpassant);
+        postfix += square_str(enp_sq) + ' ';
+    } else {
+        postfix += "- ";
     }
 
-    pos.set_halfmove_clock(std::stoi(halfmove_clock));
-    pos.set_fullmove_number(std::stoi(fullmove_number));
+    postfix += std::to_string(pos.get_halfmove_clock()) + " ";
+    postfix += std::to_string(pos.get_fullmove_number());
+    return board + postfix;
 }

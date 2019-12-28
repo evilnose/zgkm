@@ -1,4 +1,5 @@
-CC = g++
+#CC = g++
+CC = clang++
 SDIR = src
 ODIR = obj
 TDIR = test
@@ -12,7 +13,7 @@ INC = -Iinclude/
 LINK = 
 
 CFLAGS := -std=c++14
-CFLAGS_DEBUG := -Wall -g -Og
+CFLAGS_DEBUG := -Wall -g -O0
 CFLAGS_RELEASE := -DNDEBUG -O3
 
 OLDMODE = $(shell cat .buildmode)
@@ -30,7 +31,7 @@ endif
 
 OUT = out/chess 
 
-.PHONY: test clean
+.PHONY: clean
 
 all : $(OUT)
 
@@ -44,8 +45,8 @@ $(ODIR)/main.o: $(SDIR)/main.cpp .buildmode
 $(OUT): $(OBJECTS) .buildmode
 	$(CC) $(CFLAGS) $(OBJECTS) $(LINK) -o $(OUT)
 
-test: $(OBJECTS)
-	$(CC) $(CFLAGS) $(INCLUDE) -o test.exe $(OBJ) $(TESTS)
+# test: $(OBJECTS)
+# 	$(CC) $(CFLAGS) $(INCLUDE) -o test.exe $(OBJ) $(TESTS)
 
 clean:
 	rm -f $(OUT)

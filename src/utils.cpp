@@ -6,6 +6,8 @@
 
 using std::string;
 
+Square utils::KING_INIT_SQUARES[2]{ SQ_E1, SQ_E8 }; 
+
 bool utils::move_square(Square& sq, int d_rank, int d_file) {
     int rank = sq_rank(sq) + d_rank;
     int file = sq_file(sq) + d_file;

@@ -52,6 +52,13 @@ inline Square bitscan_fwd(Bitboard board) {
         debruijn_table[((board & -board) * DEBRUIJN) >> 58]);
 }
 
+// same as bitscan_fwd but unsets the found bit
+inline Square bitscan_fwd_remove(Bitboard& board) {
+    Square sq = bitscan_fwd(board);
+    board &= ~bboard::mask_square(sq);
+    return sq;
+}
+
 // return whether there is exactly one bit set
 inline bool one_bit(Bitboard board) {
     return board && !(board & (board - 1));  // && board for edge case 0

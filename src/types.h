@@ -104,27 +104,27 @@ constexpr Move MOVE_SOURCE_MASK = 0x3F0;
 constexpr Move MOVE_PROMOTION_MASK = 0x3;
 
 // Move helper functions
-inline Square move_target(Move mv) {
+inline Square get_move_target(Move mv) {
     return (Square)(mv >> (MOVE_LEN - 6));
 }
 
-inline Square move_source(Move mv) {
+inline Square get_move_source(Move mv) {
     return (Square)((mv & ~MOVE_TARGET_MASK) >> (MOVE_LEN - 12));
 }
 
-inline Color move_castle_color(Move mv) {
+inline Color get_move_castle_color(Move mv) {
 	return (Color)(mv >> (MOVE_LEN - 6));
 }
 
-inline BoardSide move_castle_side(Move mv) {
+inline BoardSide get_move_castle_side(Move mv) {
     return (BoardSide)((mv & ~MOVE_TARGET_MASK) >> (MOVE_LEN - 12));
 }
 
-inline MoveType move_type(Move mv) {
+inline MoveType get_move_type(Move mv) {
     return (MoveType)((mv & 0xf) >> (MOVE_LEN - 14));
 }
 
-inline PieceType move_promotion(Move mv) {
+inline PieceType get_move_promotion(Move mv) {
     return (PieceType)((mv & MOVE_PROMOTION_MASK) + 2);
 }
 
@@ -149,10 +149,9 @@ inline Move create_promotion_move(Square tgt, Square src, PieceType target_piece
         | ((Move)tgt << 10);
 }
 
-extern CastlingRights WHITE_O_O;
-extern CastlingRights WHITE_O_O_O;
-extern CastlingRights BLACK_O_O;
-extern CastlingRights BLACK_O_O_O;
+extern CastlingRights WHITE_OO;
+extern CastlingRights WHITE_OOO;
+extern CastlingRights BLACK_OO;
+extern CastlingRights BLACK_OOO;
 extern CastlingRights NO_CASTLING_RIGHTS;
 extern CastlingRights ALL_CASTLING_RIGHTS;
-
