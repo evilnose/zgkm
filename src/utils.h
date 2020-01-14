@@ -37,7 +37,12 @@ inline bool is_slider(PieceType pt) {
 }
 
 inline CastlingRights to_castling_rights(Color c, BoardSide side) {
-    return (CastlingRights)((1 << (2 * (int)c)) + (1 << (int)side));
+    return (CastlingRights)(1 << (2 * (int)c + (int)side));
+}
+
+// TODO optimize this if necessary
+inline CastlingRights to_castling_rights(Color c) {
+    return utils::to_castling_rights(c, KINGSIDE) | utils::to_castling_rights(c, QUEENSIDE);
 }
 
 // /* read from file and trim all whitespace; output to buf */

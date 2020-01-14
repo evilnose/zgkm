@@ -62,6 +62,14 @@ inline void add_promotion_moves(vector<Move>& moves, Square src,
     }
 }
 
+inline void add_pawn_moves(vector<Move>& moves, Square src, Bitboard tgts) {
+    if (utils::sq_rank(bboard::bitscan_fwd(tgts)) % 7 == 0) {
+        add_promotion_moves(moves, src, tgts);
+    } else {
+        add_moves(moves, src, tgts);
+    }
+}
+
 inline void add_enpassant(vector<Move>& moves, Square src, Square tgt) {
     moves.push_back(create_enpassant(tgt, src));
 }
@@ -206,19 +214,11 @@ vector<Move> gen_legal_moves(const Position& pos) {
             // can be blocked by pieces on the D/E rank.
             pawn_mask &= ~all_occ;
 
-            // if target rank is 7 or 0, this is a promotion move
-            if ((utils::sq_rank(sq) + utils::pawn_direction(atk_c)) % 7 == 0) {
-                add_promotion_moves(
-                    moves, sq,
-                    pawn_mask | (bboard::pawn_attacks(sq, atk_c) & def_occ));
-            } else {
-                add_moves(
-                    moves, sq,
-                    pawn_mask | (bboard::pawn_attacks(sq, atk_c) & def_occ));
+            add_pawn_moves(moves, sq,
+                      pawn_mask | (bboard::pawn_attacks(sq, atk_c) & def_occ));
 
-                if (bboard::pawn_attacks(sq, atk_c) & enpassant) {
-                    add_enpassant(moves, sq, enpassant_sq);
-                }
+            if (bboard::pawn_attacks(sq, atk_c) & enpassant) {
+                add_enpassant(moves, sq, enpassant_sq);
             }
         }
 
@@ -233,20 +233,22 @@ vector<Move> gen_legal_moves(const Position& pos) {
                         bboard::pawn_pushes(sq, atk_c) & ~all_occ;
 
                     pawn_mask |=
-                        ((pawn_mask & special_rank) << ((atk_c == WHITE) << 3));
+                        ((pawn_mask & special_rank) << ((atk_c == WHITE) * 8));
                     pawn_mask |=
-                        ((pawn_mask & special_rank) >> ((atk_c == BLACK) << 3));
+                        ((pawn_mask & special_rank) >> ((atk_c == BLACK) * 8));
 
-                    add_moves(moves, sq, pawn_mask & ~all_occ);
+                    add_pawn_moves(moves, sq, pawn_mask & ~all_occ);
                 } else {
-                    // one potential pawn capture
-                    Square t_sq = sq;
-                    utils::move_square(t_sq, d_rank, d_file);
-                    Bitboard masked_tar = bboard::mask_square(t_sq);
-                    add_moves(moves, sq,
-                              masked_tar & bboard::pawn_attacks(sq, atk_c));
-                    if (masked_tar & enpassant) {
-                        add_enpassant(moves, sq, enpassant_sq);
+                    if (d_rank > 0) {
+                        // one potential pawn capture
+                        Square t_sq = sq;
+                        utils::move_square(t_sq, d_rank, d_file);
+                        Bitboard tar_mask = bboard::mask_square(t_sq);
+                        if (tar_mask & enpassant) {
+                            add_enpassant(moves, sq, enpassant_sq);
+                        } else {
+                            add_pawn_moves(moves, sq, tar_mask & def_occ);
+                        }
                     }
                 }
             }  // else if on same rank, pawn can't move
@@ -265,7 +267,8 @@ vector<Move> gen_legal_moves(const Position& pos) {
         Bitboard pinned_bishops = bishops & pinned;
         while (free_bishops != 0ULL) {
             Square sq = bboard::bitscan_fwd_remove(free_bishops);
-            add_moves(moves, sq, bboard::bishop_attacks(sq, all_occ) & ~atk_occ);
+            add_moves(moves, sq,
+                      bboard::bishop_attacks(sq, all_occ) & ~atk_occ);
         }
 
         Bitboard kb_atk = bboard::bishop_attacks(king_sq, 0ULL);
@@ -320,16 +323,19 @@ vector<Move> gen_legal_moves(const Position& pos) {
             }
         }
 
-        // castling
+        // printf("CASTLING RIGHTS: %c\n", utils::to_castling_rights(atk_c,
+        // KINGSIDE)); castling
         if (pos.has_castling_rights(
                 utils::to_castling_rights(atk_c, KINGSIDE)) &&
-            !(bboard::castle_occ(atk_c, KINGSIDE) & all_occ & def_attacks)) {
+            !(bboard::castle_king_occ(atk_c, KINGSIDE) & def_attacks) &&
+            !(bboard::castle_between_occ(atk_c, KINGSIDE) & all_occ)) {
             add_castling_move(moves, atk_c, KINGSIDE);
         }
 
         if (pos.has_castling_rights(
                 utils::to_castling_rights(atk_c, QUEENSIDE)) &&
-            !(bboard::castle_occ(atk_c, QUEENSIDE) & all_occ & def_attacks)) {
+            !(bboard::castle_king_occ(atk_c, QUEENSIDE) & def_attacks) &&
+            !(bboard::castle_between_occ(atk_c, QUEENSIDE) & all_occ)) {
             add_castling_move(moves, atk_c, QUEENSIDE);
         }
     } else if (n_checks == 1) {
@@ -338,13 +344,17 @@ vector<Move> gen_legal_moves(const Position& pos) {
         Square checker_sq = bboard::bitscan_fwd(checkers);
         pos.get_piece(checker_sq, dummy_c, ptype);
         assert(dummy_c == def_c);
-        // mask for BOTH blocking and capturing
-        Bitboard block_mask = checkers;
+        // squares that can be captured for check evasion
+        Bitboard capture_mask = checkers;
+        // squares that can be blocked for check evasion
+        // Note that this distinction is required b/c pawn has
+        // different capture and push (block) squares
+        Bitboard block_mask = 0ULL;
         if (utils::is_slider(ptype)) {
             switch (ptype) {
                 case BISHOP:
-                    block_mask |= bboard::bishop_attacks(king_sq, all_occ) &
-                                  bboard::bishop_attacks(checker_sq, all_occ);
+                    block_mask = bboard::bishop_attacks(king_sq, all_occ) &
+                                 bboard::bishop_attacks(checker_sq, all_occ);
                     break;
                 case ROOK:
                     block_mask = bboard::rook_attacks(king_sq, all_occ) &
@@ -352,10 +362,10 @@ vector<Move> gen_legal_moves(const Position& pos) {
                     break;
                 case QUEEN:  // use no-branch-if?
                     if (same_line(king_sq, checker_sq)) {
-                        block_mask |= bboard::rook_attacks(king_sq, all_occ) &
-                                      bboard::rook_attacks(checker_sq, all_occ);
+                        block_mask = bboard::rook_attacks(king_sq, all_occ) &
+                                     bboard::rook_attacks(checker_sq, all_occ);
                     } else {
-                        block_mask |=
+                        block_mask =
                             bboard::bishop_attacks(king_sq, all_occ) &
                             bboard::bishop_attacks(checker_sq, all_occ);
                     }
@@ -365,6 +375,7 @@ vector<Move> gen_legal_moves(const Position& pos) {
                     break;
             }
         }
+        Bitboard check_mask = capture_mask | block_mask;
 
         Bitboard pinner = 0ULL;
         Bitboard pinned = absolute_pins(pos, atk_c, pinner);
@@ -391,21 +402,25 @@ vector<Move> gen_legal_moves(const Position& pos) {
             // add capture moves
             Bitboard pawn_attacks = bboard::pawn_attacks(sq, atk_c);
 
-            pawn_mask &= block_mask;
+            add_pawn_moves(moves, sq,
+                      (pawn_mask & block_mask) | (pawn_attacks & capture_mask));
 
-            add_moves(moves, sq, (pawn_mask | pawn_attacks) & block_mask);
-
-            if (pawn_attacks & enpassant) {
+            // if can EP capture AND (EP pawn is the checker OR
+            // enpassant mask blocks the attacker)
+            if ((pawn_attacks & enpassant) &&
+                (checkers & pos.get_bitboard(def_c, PAWN)) |
+                    (enpassant & block_mask)) {
                 add_enpassant(moves, sq, enpassant_sq);
             }
         }
+
+        // pinned pawns cannot possibly help evade check
 
         // knights
         Bitboard free_knights = pos.get_bitboard(atk_c, KNIGHT) & ~pinned;
         while (free_knights != 0ULL) {
             Square sq = bboard::bitscan_fwd_remove(free_knights);
-            add_moves(moves, sq,
-                      bboard::knight_attacks(sq) & block_mask);
+            add_moves(moves, sq, bboard::knight_attacks(sq) & check_mask);
         }
 
         // bishops
@@ -413,7 +428,7 @@ vector<Move> gen_legal_moves(const Position& pos) {
         while (free_bishops != 0ULL) {
             Square sq = bboard::bitscan_fwd_remove(free_bishops);
             add_moves(moves, sq,
-                      bboard::bishop_attacks(sq, all_occ) & block_mask);
+                      bboard::bishop_attacks(sq, all_occ) & check_mask);
         }
 
         // rooks
@@ -421,30 +436,38 @@ vector<Move> gen_legal_moves(const Position& pos) {
         while (free_rooks != 0ULL) {
             Square sq = bboard::bitscan_fwd_remove(free_rooks);
             add_moves(moves, sq,
-                      bboard::rook_attacks(sq, all_occ) & block_mask);
+                      bboard::rook_attacks(sq, all_occ) & check_mask);
         }
 
         Bitboard free_queens = pos.get_bitboard(atk_c, QUEEN) & ~pinned;
         while (free_queens != 0ULL) {
             Square sq = bboard::bitscan_fwd_remove(free_queens);
             add_moves(moves, sq,
-                      bboard::queen_attacks(sq, all_occ) & block_mask);
+                      bboard::queen_attacks(sq, all_occ) & check_mask);
         }
     }  // else only king moves are legal, and nothing more needs to be done
     return moves;
 }
 
-
-#include "notation.h" // TODO remove this
+#include "notation.h"  // TODO remove this
 // TODO make this recursive and add undo_move
-std::vector<int> perft(const Position& position, int depth) {
-    std::vector<int> node_count;
+// but before you do THAT, first make this work up to whatever
+// depth this unoptimized junk can handle in a reasonable amount of time
+// TODO also, output captures, ep captures, castles, promotions, checks, etc.
+std::vector<long> perft(const Position& position, int depth) {
+    std::vector<long> node_count;
     std::queue<Position> last_q;
     std::queue<Position> cur_q;
     last_q.push(position);
     for (int d = 1; d <= depth; d++) {
-        int count = 0;
-        std::cout << "------DEPTH " << d << "------" << "\n\n";
+        long count = 0;
+        long ncastles = 0;
+        long nenpassant = 0;
+        long nchecks = 0;
+        long ncaptures = 0;
+        long npromotions = 0;
+        std::cout << "------DEPTH " << d << "------"
+                  << "\n\n";
         while (!last_q.empty()) {
             Position pos = last_q.front();
             last_q.pop();
@@ -452,7 +475,7 @@ std::vector<int> perft(const Position& position, int depth) {
             std::vector<Move> legal_moves = gen_legal_moves(pos);
             for (Move move : gen_legal_moves(pos)) {
                 Position next_pos = pos;
-                next_pos.apply_move(move);
+                next_pos.make_move(move);
                 // std::cout << "\n"
                 //           << notation::pretty_move(move, legal_moves, pos,
                 //                                    pos.is_checking(), false)
@@ -460,8 +483,36 @@ std::vector<int> perft(const Position& position, int depth) {
                 //           << notation::to_aligned_fen(next_pos) << "\n\n";
                 cur_q.push(next_pos);
                 count++;
+                if (next_pos.is_checking()) {
+                    // std::cout << notation::to_aligned_fen(next_pos) <<
+                    // "\n\n";
+                    nchecks++;
+                }
+                Color defc = utils::opposite_color(pos.get_side_to_move());
+                if (pos.get_color_bitboard(defc) !=
+                    next_pos.get_color_bitboard(defc)) {
+                    ncaptures++;
+                }
+                switch (get_move_type(move)) {
+                    case CASTLING_MOVE:
+                        ncastles++;
+                        break;
+                    case ENPASSANT:
+                        nenpassant++;
+                        break;
+                    case PROMOTION:
+                        npromotions++;
+                        break;
+                    default:
+                        break;
+                }
             }
         }
+        std::cout << "castles: " << ncastles << std::endl;
+        std::cout << "enpassants: " << nenpassant << std::endl;
+        std::cout << "checks: " << nchecks << std::endl;
+        std::cout << "captures: " << ncaptures << std::endl;
+        std::cout << "promotions: " << npromotions << std::endl;
         // clear cur_q and assign cur_q to last_q
         std::queue<Position> empty;
         empty.swap(cur_q);

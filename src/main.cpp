@@ -3,15 +3,17 @@
 #include "notation.h"
 #include "utils.h"
 
-#include<cassert>
+#include <cassert>
 
 void basic_tests();
+void print_moves(const char*);
 void test_perft();
 
 int main(int argc, char* argv[]) {
     bboard::initialize();
     // basic_tests();
-    test_perft();
+    print_moves("./fixtures/temp.fen");
+    // test_perft();
     return 0;
 }
 
@@ -75,7 +77,7 @@ void basic_tests() {
 
     printf("Testing movegen(0 checks)...\n");
     Position pos2;
-    const char* fname2 = "./fixtures/promotions.fen";
+    const char* fname2 = "./fixtures/castling.fen";
     std::ifstream infile;
     infile.open(fname2);
     printf("Reading from %s...\n", fname2);
@@ -90,26 +92,44 @@ void basic_tests() {
     }
     printf("Done.\n");
 
-    printf("Testing apply_move...(continuing from movegen)\n");
+    printf("Testing make_move...(continuing from movegen)\n");
     for (Move mv : moves) {
         std::cout << "Applying move: "
                   << notation::pretty_move(mv, moves, pos2, false, false)
                   << std::endl;
         Position copy = pos2;
-        copy.apply_move(mv);
+        copy.make_move(mv);
         std::cout << notation::to_aligned_fen(copy) << "\n\n";
     }
 }
 
+void print_moves(const char* fname) {
+    std::ifstream infile;
+    infile.open(fname);
+    printf("Reading from %s...\n", fname);
+    assert(infile.good());
+    Position pos(infile);
+    std::vector<Move> moves = gen_legal_moves(pos);
+    printf("Found %zd legal moves:\n", moves.size());
+    for (Move mv : moves) {
+        // assuming no check or mate
+        std::cout << notation::pretty_move(mv, moves, pos, false, false)
+                  << std::endl;
+    }
+    printf("Done.\n");
+}
+
 void test_perft() {
-    std::istringstream iss = std::istringstream(STARTING_FEN);
+    std::istringstream iss = std::istringstream(KIWIPETE_FEN);
     Position pos(iss);
-    int depth = 5;
-    std::vector<int> counts = perft(pos, depth);
+    int depth = 4;
+    std::vector<long> counts = perft(pos, depth);
     // std::cout << counts << std::endl;
-    std::cout << "perft for position:" << "\n\n";
+    std::cout << "perft for position:"
+              << "\n\n";
     std::cout << notation::to_aligned_fen(pos) << "\n\n";
     for (int d = 1; d <= depth; d++) {
-        std::cout << "depth " << d << ": " << counts[d-1] << " moves" << std::endl;
+        std::cout << "depth " << d << ": " << counts[d - 1] << " moves"
+                  << std::endl;
     }
 }

@@ -101,7 +101,7 @@ std::string notation::pretty_move(Move mv, const std::vector<Move>& legal_moves,
         }
     } else {
         buf[2] = 'O';
-        bool queenside = !is_kingside_castle(tgt_sq);
+        bool queenside = get_move_castle_side(mv) == QUEENSIDE;
         buf[3] = queenside * '-';
         buf[4] = queenside * 'O';
     }
@@ -166,16 +166,16 @@ std::string notation::to_aligned_fen(const Position& pos) {
     if (rights == NO_CASTLING_RIGHTS) {
         postfix += "-";
     } else {
-        if (rights & BLACK_OO) {
+        if (rights & WHITE_OO) {
             postfix += "K";
         }
-        if (rights & BLACK_OOO) {
+        if (rights & WHITE_OOO) {
             postfix += "Q";
         }
-        if (rights & WHITE_OO) {
+        if (rights & BLACK_OO) {
             postfix += "k";
         }
-        if (rights & WHITE_OOO) {
+        if (rights & BLACK_OOO) {
             postfix += "q";
         }
     }

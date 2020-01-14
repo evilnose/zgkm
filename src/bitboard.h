@@ -31,11 +31,16 @@ extern Bitboard p_attack_table[N_COLORS][64];
 extern Bitboard n_attack_table[64];
 extern Bitboard k_attack_table[64];
 
-// occupancy that must not be attacked or occupied by any piece in order
-// for castling to be possible. NOTE does not include king's own square.
+// occupancy that must not be attacked for castling to be possible.
+// NOTE does not include king's own square.
 // Indexing: white kingside, white queenside, black kingside, black queenside.
-static Bitboard castle_occ_table[]{0x6ULL, 0x30ULL, 0x600000000000000ULL,
-                                   0x3000000000000000ULL};
+static Bitboard castle_king_occ_table[]{0x60ULL, 0xcULL, 0x6000000000000000ULL,
+                                   0xc00000000000000ULL};
+
+// occupancy that must not be occupied for castling to be possible (i.e.
+// squares between king and rook
+static Bitboard castle_between_occ_table[]{0x60ULL, 0xeULL, 0x6000000000000000ULL,
+                                   0xe00000000000000ULL};
 
 // called once at the start of the program; populate move tables
 void initialize();
@@ -90,8 +95,12 @@ inline Bitboard knight_attacks(Square sq) { return n_attack_table[sq]; }
 
 inline Bitboard king_attacks(Square sq) { return k_attack_table[sq]; }
 
-inline Bitboard castle_occ(Color c, BoardSide side) {
-    return castle_occ_table[static_cast<int>(c) * 2 + static_cast<int>(side)];
+inline Bitboard castle_king_occ(Color c, BoardSide side) {
+    return castle_king_occ_table[static_cast<int>(c) * 2 + static_cast<int>(side)];
+}
+
+inline Bitboard castle_between_occ(Color c, BoardSide side) {
+    return castle_between_occ_table[static_cast<int>(c) * 2 + static_cast<int>(side)];
 }
 
 // Find the first occupied square from s1 to s2.

@@ -24,15 +24,21 @@ class Position {
 
     // Position(std::string ascii, Color side2move, const CastlingRights& cstate);
 
+    /*
+    0 0 1
+    0 1 1
+    1 0 0
+    1 1 1
+    */
     inline bool has_castling_rights(CastlingRights cr) const {
-        return cr & ~castling_rights;
+        return !(cr & ~castling_rights);
     }
 
     inline CastlingRights get_castling_rights() const {
         return castling_rights;
     }
 
-    void apply_move(Move);
+    void make_move(Move);
 
     // std::string to_ascii() const;
 
@@ -130,5 +136,6 @@ class Position {
 };
 
 static std::string STARTING_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+static std::string KIWIPETE_FEN = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1";
 
 void test_get_attackers(Position& pos, Square sq, Color atk_color);

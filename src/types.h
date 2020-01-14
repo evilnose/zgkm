@@ -7,7 +7,7 @@ using Bitboard = uint64_t;
 using I8 = int8_t;
 using U64 = uint64_t;
 using Move = unsigned short;
-using CastlingRights = unsigned short;
+using CastlingRights = unsigned char;
 
 constexpr Bitboard RANK_A = 0xFF;
 constexpr Bitboard RANK_B = RANK_A << 8;
@@ -17,8 +17,9 @@ constexpr Bitboard RANK_E = RANK_D << 8;
 constexpr Bitboard RANK_F = RANK_E << 8;
 constexpr Bitboard RANK_G = RANK_F << 8;
 constexpr Bitboard RANK_H = RANK_G << 8;
-
 constexpr Bitboard PROMOTION_RANKS = RANK_A | RANK_H;
+
+constexpr Bitboard ROOK_FILES = 0x8181818181818181;
 
 struct Direction {
     I8 d_rank;
