@@ -2,8 +2,16 @@
 
 #include <string>
 #include <vector>
+#include <stack>
 
 #include "bitboard.h"
+
+struct PosState {
+    PieceType captured_piece;
+    CastlingRights castling_rights;
+    Bitboard enpassant_mask;
+    int halfmove_clock; 
+};
 
 class Position {
    public:
@@ -39,6 +47,8 @@ class Position {
     }
 
     void make_move(Move);
+
+    void unmake_move(Move);
 
     // std::string to_ascii() const;
 
@@ -133,6 +143,8 @@ class Position {
 	// TODO game is drawn after this reaches 100
 	int halfmove_clock; 
 	int fullmove_number;
+
+    std::stack<PosState> history;
 };
 
 static std::string STARTING_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";

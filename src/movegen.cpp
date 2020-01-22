@@ -454,7 +454,7 @@ vector<Move> gen_legal_moves(const Position& pos) {
 // but before you do THAT, first make this work up to whatever
 // depth this unoptimized junk can handle in a reasonable amount of time
 // TODO also, output captures, ep captures, castles, promotions, checks, etc.
-std::vector<long> perft(const Position& position, int depth) {
+int perft(Position& position, int depth) {
     std::vector<long> node_count;
     std::queue<Position> last_q;
     std::queue<Position> cur_q;

@@ -131,9 +131,12 @@ void Position::load_fen(std::istream& fen_is) {
 void Position::make_move(Move move) {
     MoveType type = get_move_type(move);
     enpassant_mask = 0ULL;
+    PosState cur_state{NO_PIECE, castling_rights, enpassant_mask,
+                       halfmove_clock};
 
     if (type == CASTLING_MOVE) {
         Color color = get_move_castle_color(move);
+        fullmove_number += (int)color;  // add if white
         BoardSide side = get_move_castle_side(move);
         // TODO maybe hardcoding in / constexpr'ing mask_square makes this
         // faster?
@@ -179,6 +182,7 @@ void Position::make_move(Move move) {
         // NOTE: does NOT account for EP
         if (get_all_bitboard() & tgt_mask) {
             bool good = get_piece(tgt, tgt_color, tgt_piece);
+            cur_state.captured_piece = tgt_piece;
             assert(good);  // must have piece there
             // only remove if piece exists
             piece_bitboards[tgt_piece] &= ~tgt_mask;
@@ -189,8 +193,7 @@ void Position::make_move(Move move) {
             // remove castling rights for opponent if rook captured
             if (tgt_piece == ROOK && (tgt_mask & ROOK_FILES)) {
                 BoardSide side = (BoardSide)(!utils::sq_file(tgt));
-                castling_rights &= ~utils::to_castling_rights(
-                    tgt_color, side);
+                castling_rights &= ~utils::to_castling_rights(tgt_color, side);
             }
         }
 
@@ -198,6 +201,7 @@ void Position::make_move(Move move) {
         // do this for all move types here
         bool good = get_piece(src, src_color, src_piece);
         assert(good);
+        fullmove_number += (int)src_color;
         piece_bitboards[src_piece] &= ~src_mask;
         piece_bitboards[ANY_PIECE] &= ~src_mask;
         color_bitboards[src_color] &= ~src_mask;
@@ -206,9 +210,7 @@ void Position::make_move(Move move) {
         if (type == PROMOTION) {
             src_piece = get_move_promotion(move);
         } else if (type == ENPASSANT) {
-            // if en-passant, update target square
-            // and remove captured piece at square
-
+            // if en-passant, remove captured piece at square
             Color rmv_color = utils::opposite_color(src_color);
             Square rmv = tgt;
             utils::move_square(rmv, utils::pawn_direction(rmv_color), 0);
@@ -235,6 +237,101 @@ void Position::make_move(Move move) {
             BoardSide side = (BoardSide)(!utils::sq_file(src));
             castling_rights &= ~utils::to_castling_rights(src_color, side);
         }
+    }
+
+    history.push(cur_state);
+    side_to_move = utils::opposite_color(side_to_move);
+}
+
+void Position::unmake_move(Move move) {
+    MoveType type = get_move_type(move);
+    enpassant_mask = 0ULL;
+    PosState last_state = history.top();
+    history.pop();
+    enpassant_mask = last_state.enpassant_mask;
+    halfmove_clock = last_state.halfmove_clock;
+
+    if (type == CASTLING_MOVE) {
+        Color color = get_move_castle_color(move);
+        fullmove_number -= (int)color;  // sub if white
+        BoardSide side = get_move_castle_side(move);
+        // TODO maybe hardcoding in / constexpr'ing mask_square makes this
+        // faster?
+        Bitboard king_target =
+            bboard::mask_square(utils::king_castle_target(color, side));
+        Bitboard rook_target =
+            bboard::mask_square(utils::rook_castle_target(color, side));
+        Bitboard king_source =
+            bboard::mask_square(utils::KING_INIT_SQUARES[color]);
+        Bitboard rook_source =
+            bboard::mask_square(utils::rook_castle_source(color, side));
+
+        // remove rook
+        piece_bitboards[ROOK] &= ~rook_target;
+        piece_bitboards[ANY_PIECE] &= ~rook_target;
+        color_bitboards[color] &= ~rook_target;
+        // remove king
+        piece_bitboards[KING] &= ~king_target;
+        piece_bitboards[ANY_PIECE] &= ~king_target;
+        color_bitboards[color] &= ~king_target;
+        // add rook
+        piece_bitboards[ROOK] |= rook_source;
+        piece_bitboards[ANY_PIECE] |= rook_source;
+        color_bitboards[color] |= rook_source;
+        // add king
+        piece_bitboards[KING] |= king_source;
+        piece_bitboards[ANY_PIECE] |= king_source;
+        color_bitboards[color] |= king_source;
+    } else {
+        Square src = get_move_source(move);
+        Square tgt = get_move_target(move);
+        Bitboard src_mask = bboard::mask_square(src);
+        Bitboard tgt_mask = bboard::mask_square(tgt);
+        Color src_color;
+        // Color tgt_color;
+        PieceType src_piece;
+        // PieceType tgt_piece;
+
+        // remove src piece from tgt location
+        // do this for all move types here
+        bool good = get_piece(tgt, src_color, src_piece);
+        assert(good);
+        fullmove_number -= (int)src_color;
+        piece_bitboards[src_piece] &= ~src_mask;
+        piece_bitboards[ANY_PIECE] &= ~src_mask;
+        color_bitboards[src_color] &= ~src_mask;
+
+        if (type == ENPASSANT) {
+            // if en-passant, update tgt_square
+            Color rmv_color = utils::opposite_color(src_color);
+            Square rmv = tgt;
+            utils::move_square(rmv, utils::pawn_direction(rmv_color), 0);
+            Bitboard rmv_mask = bboard::mask_square(rmv);
+            // restore captured pawn
+            color_bitboards[utils::opposite_color(src_color)] |= rmv_mask;
+            piece_bitboards[last_state.captured_piece] |= rmv_mask;
+            piece_bitboards[ANY_PIECE] |= rmv_mask;
+        } else {
+            if (type == PROMOTION) {
+                // restore src piece type if promotion
+                src_piece = PAWN;
+            } else if (src_piece == PAWN && abs((int)tgt - (int)src) == 16) {
+                // TODO no-branch-if in condition?
+                enpassant_mask =
+                    bboard::mask_square((Square)(((int)tgt + (int)src) / 2));
+            }
+            // restore captured piece
+            if (last_state.captured_piece != NO_PIECE) {
+                color_bitboards[utils::opposite_color(src_color)] |= tgt_mask;
+                piece_bitboards[last_state.captured_piece] |= tgt_mask;
+                piece_bitboards[ANY_PIECE] |= tgt_mask;
+            }
+        }
+
+        // place src piece back
+        piece_bitboards[src_piece] |= src_mask;
+        piece_bitboards[ANY_PIECE] |= src_mask;
+        color_bitboards[src_color] |= src_mask;
     }
 
     side_to_move = utils::opposite_color(side_to_move);
