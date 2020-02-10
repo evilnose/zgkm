@@ -8,12 +8,16 @@
 void basic_tests();
 void print_moves(const char*);
 void test_perft();
+void test_unmake();
+void run_divide();
 
 int main(int argc, char* argv[]) {
     bboard::initialize();
     // basic_tests();
-    print_moves("./fixtures/temp.fen");
+    // print_moves("./fixtures/temp.fen");
     // test_perft();
+    run_divide();
+    // test_unmake();
     return 0;
 }
 
@@ -122,14 +126,41 @@ void print_moves(const char* fname) {
 void test_perft() {
     std::istringstream iss = std::istringstream(KIWIPETE_FEN);
     Position pos(iss);
-    int depth = 4;
-    std::vector<long> counts = perft(pos, depth);
+    int depth = 5;
+    int count = perft(pos, depth);
     // std::cout << counts << std::endl;
     std::cout << "perft for position:"
               << "\n\n";
     std::cout << notation::to_aligned_fen(pos) << "\n\n";
-    for (int d = 1; d <= depth; d++) {
-        std::cout << "depth " << d << ": " << counts[d - 1] << " moves"
-                  << std::endl;
+    std::cout << "DEPTH: " << depth << "; COUNT: " << count << std::endl;
+}
+
+void test_unmake() {
+    const char* fname = "./fixtures/kiwipete_weird.fen";
+    std::ifstream infile;
+    infile.open(fname);
+    printf("Reading from %s...\n", fname);
+    assert(infile.good());
+    // std::istringstream iss = std::istringstream(KIWIPETE_FEN);
+    Position pos(infile);
+    auto moves = gen_legal_moves(pos);
+    for (Move mv : moves) {
+        Position temp = pos;
+        temp.make_move(mv);
+        temp.unmake_move(mv);
+        // if (pos != temp) {
+        //     std::cout << (notation::pretty_move(mv, moves, pos, false, false)) << std::endl;
+        // }
+        assert(pos == temp);
     }
+    printf("Done testing unmake.\n");
+}
+
+void run_divide() {
+    // std::string my_str = "r3k2r/p1ppq1b1/bn2pnp1/4N2Q/1p2P3/2N4p/PPPBBPPP/R3K2R b KQkq - 0 1";
+    std::string my_str = STARTING_FEN;
+    std::istringstream iss = std::istringstream(my_str);
+    Position pos(iss);
+    
+    divide(pos, 6);
 }

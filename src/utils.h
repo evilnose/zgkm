@@ -9,7 +9,7 @@
 
 namespace utils {
 
-static bool is_slider_table[]{0, 0, 0, 1, 1, 1, 0, 0};
+static bool is_slider_table[]{0, 0, 1, 1, 1, 0, 0, 0};
 extern Square KING_INIT_SQUARES[2];
 
 inline int sq_rank(Square sq) { return sq / 8; }
@@ -93,6 +93,12 @@ inline Square rook_castle_target(Color c, BoardSide side) {
 
 inline Square rook_castle_source(Color c, BoardSide side) {
     return ROOK_CASTLING_SOURCE[c][side];
+}
+
+// returns (int) 1 if val > 0, 0 if == 0, -1 if < 0.
+template <typename T>
+int sgn(T val) {
+    return (T(0) < val) - (val < T(0));
 }
 
 }  // namespace utils

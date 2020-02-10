@@ -109,6 +109,18 @@ std::string notation::pretty_move(Move mv, const std::vector<Move>& legal_moves,
     return std::string(buf);
 }
 
+std::string notation::simple_pretty_move(Move mv) {
+    MoveType type = get_move_type(mv);
+    if (type == CASTLING_MOVE) {
+        BoardSide side = get_move_castle_side(mv);
+        Color color = get_move_castle_color(mv);
+        Square king_src = color == WHITE ? SQ_E1 : SQ_E8;
+        return square_str(king_src) + square_str(utils::king_castle_target(color, side));
+    } else {
+        return square_str(get_move_source(mv)) + square_str(get_move_target(mv));
+    }
+}
+
 std::string notation::to_fen(const Position& pos) {
     std::string ret;
     ret.reserve(128);

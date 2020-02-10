@@ -36,6 +36,11 @@ move_idx:       Index of the move that should be printed
 std::string pretty_move(Move mv, const std::vector<Move>& legal_moves,
                         const Position& pos, bool checking, bool mating);
 
+std::string simple_pretty_move(Move mv);
+
+// TODO
+std::string info_move(Move mv);
+
 // void load_fen(Position& pos, std::istream& ins);
 
 std::string to_fen(const Position& pos);

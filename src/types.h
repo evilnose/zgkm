@@ -35,8 +35,12 @@ extern Direction NORTHEAST;
 extern Direction SOUTHWEST;
 extern Direction SOUTHEAST;
 
+/* 
+NOTE if this were changed, some other things need to be changed too:
+piece offset for promotion move;
+is_slider_table
+*/
 enum PieceType {
-    NO_PIECE,
     PAWN,
     KNIGHT,
     BISHOP,
@@ -44,6 +48,7 @@ enum PieceType {
     QUEEN,
     KING,
     ANY_PIECE,
+    NO_PIECE,
     N_PIECE_TYPES
 };
 
@@ -126,7 +131,7 @@ inline MoveType get_move_type(Move mv) {
 }
 
 inline PieceType get_move_promotion(Move mv) {
-    return (PieceType)((mv & MOVE_PROMOTION_MASK) + 2);
+    return (PieceType)((mv & MOVE_PROMOTION_MASK) + 1);
 }
 
 // move helper functions
@@ -146,7 +151,7 @@ inline Move create_castling_move(Color c, BoardSide side) {
 inline Move create_promotion_move(Square tgt, Square src, PieceType target_piece) {
     assert(target_piece == QUEEN || target_piece == ROOK || target_piece == KNIGHT ||
             target_piece == BISHOP);
-    return ((Move)target_piece - 2) | ((Move)PROMOTION << 2) | ((Move)src << 4)
+    return ((Move)target_piece - 1) | ((Move)PROMOTION << 2) | ((Move)src << 4)
         | ((Move)tgt << 10);
 }
 

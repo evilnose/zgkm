@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include <unordered_map>
 
 #include "position.h"
 
@@ -12,3 +13,5 @@ void test_absolute_pins(Position& position);
 
 // generate move count for perft
 int perft(Position& position, int depth);
+
+void divide(Position& position, int depth);

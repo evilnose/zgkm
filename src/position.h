@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <stack>
+#include <array>
 
 #include "bitboard.h"
 
@@ -27,6 +28,11 @@ class Position {
      * for visual purposes.
 	 */
     Position(std::istream& fen_is);
+
+    // NOTE does not compare halfmove_clock
+    bool operator==(const Position& other) const;
+
+    bool operator!=(const Position& other) const;
 
     void load_fen(std::istream& fen_is);
 
@@ -129,11 +135,14 @@ class Position {
 
     bool is_game_over();
 
+    // basic assertions about the integrity of data fields
+    void assert_position();
+
    private:
     Color side_to_move;
     CastlingRights castling_rights;
-    Bitboard piece_bitboards[N_PIECE_TYPES];
-    Bitboard color_bitboards[N_COLORS];
+    std::array<Bitboard, N_PIECE_TYPES - 1> piece_bitboards; // excludes NO_PIECE
+    std::array<Bitboard, N_COLORS> color_bitboards;
     /* zero if no en-passant last ply, else the capture mask of en-passant
      * e.g. last ply a2-a4, enpassant would hold occupancy of a3.
      */

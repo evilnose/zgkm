@@ -7,6 +7,7 @@
 
 // TODO remove; for debugging
 #include <iostream>
+#include "notation.h"
 
 using std::vector;
 
@@ -63,6 +64,7 @@ inline void add_promotion_moves(vector<Move>& moves, Square src,
 }
 
 inline void add_pawn_moves(vector<Move>& moves, Square src, Bitboard tgts) {
+    // TODO no-branch if?
     if (utils::sq_rank(bboard::bitscan_fwd(tgts)) % 7 == 0) {
         add_promotion_moves(moves, src, tgts);
     } else {
@@ -214,8 +216,9 @@ vector<Move> gen_legal_moves(const Position& pos) {
             // can be blocked by pieces on the D/E rank.
             pawn_mask &= ~all_occ;
 
-            add_pawn_moves(moves, sq,
-                      pawn_mask | (bboard::pawn_attacks(sq, atk_c) & def_occ));
+            add_pawn_moves(
+                moves, sq,
+                pawn_mask | (bboard::pawn_attacks(sq, atk_c) & def_occ));
 
             if (bboard::pawn_attacks(sq, atk_c) & enpassant) {
                 add_enpassant(moves, sq, enpassant_sq);
@@ -239,10 +242,12 @@ vector<Move> gen_legal_moves(const Position& pos) {
 
                     add_pawn_moves(moves, sq, pawn_mask & ~all_occ);
                 } else {
-                    if (d_rank > 0) {
+                    // pawn captures
+                    if (d_rank * utils::pawn_direction(atk_c) > 0) {
                         // one potential pawn capture
                         Square t_sq = sq;
-                        utils::move_square(t_sq, d_rank, d_file);
+                        bool good = utils::move_square(t_sq, utils::sgn(d_rank), utils::sgn(d_file));
+                        assert(good);
                         Bitboard tar_mask = bboard::mask_square(t_sq);
                         if (tar_mask & enpassant) {
                             add_enpassant(moves, sq, enpassant_sq);
@@ -402,8 +407,9 @@ vector<Move> gen_legal_moves(const Position& pos) {
             // add capture moves
             Bitboard pawn_attacks = bboard::pawn_attacks(sq, atk_c);
 
-            add_pawn_moves(moves, sq,
-                      (pawn_mask & block_mask) | (pawn_attacks & capture_mask));
+            add_pawn_moves(
+                moves, sq,
+                (pawn_mask & block_mask) | (pawn_attacks & capture_mask));
 
             // if can EP capture AND (EP pawn is the checker OR
             // enpassant mask blocks the attacker)
@@ -449,75 +455,40 @@ vector<Move> gen_legal_moves(const Position& pos) {
     return moves;
 }
 
-#include "notation.h"  // TODO remove this
-// TODO make this recursive and add undo_move
-// but before you do THAT, first make this work up to whatever
-// depth this unoptimized junk can handle in a reasonable amount of time
-// TODO also, output captures, ep captures, castles, promotions, checks, etc.
 int perft(Position& position, int depth) {
-    std::vector<long> node_count;
-    std::queue<Position> last_q;
-    std::queue<Position> cur_q;
-    last_q.push(position);
-    for (int d = 1; d <= depth; d++) {
-        long count = 0;
-        long ncastles = 0;
-        long nenpassant = 0;
-        long nchecks = 0;
-        long ncaptures = 0;
-        long npromotions = 0;
-        std::cout << "------DEPTH " << d << "------"
-                  << "\n\n";
-        while (!last_q.empty()) {
-            Position pos = last_q.front();
-            last_q.pop();
-
-            std::vector<Move> legal_moves = gen_legal_moves(pos);
-            for (Move move : gen_legal_moves(pos)) {
-                Position next_pos = pos;
-                next_pos.make_move(move);
-                // std::cout << "\n"
-                //           << notation::pretty_move(move, legal_moves, pos,
-                //                                    pos.is_checking(), false)
-                //           << '\n'
-                //           << notation::to_aligned_fen(next_pos) << "\n\n";
-                cur_q.push(next_pos);
-                count++;
-                if (next_pos.is_checking()) {
-                    // std::cout << notation::to_aligned_fen(next_pos) <<
-                    // "\n\n";
-                    nchecks++;
-                }
-                Color defc = utils::opposite_color(pos.get_side_to_move());
-                if (pos.get_color_bitboard(defc) !=
-                    next_pos.get_color_bitboard(defc)) {
-                    ncaptures++;
-                }
-                switch (get_move_type(move)) {
-                    case CASTLING_MOVE:
-                        ncastles++;
-                        break;
-                    case ENPASSANT:
-                        nenpassant++;
-                        break;
-                    case PROMOTION:
-                        npromotions++;
-                        break;
-                    default:
-                        break;
-                }
-            }
-        }
-        std::cout << "castles: " << ncastles << std::endl;
-        std::cout << "enpassants: " << nenpassant << std::endl;
-        std::cout << "checks: " << nchecks << std::endl;
-        std::cout << "captures: " << ncaptures << std::endl;
-        std::cout << "promotions: " << npromotions << std::endl;
-        // clear cur_q and assign cur_q to last_q
-        std::queue<Position> empty;
-        empty.swap(cur_q);
-        last_q.swap(empty);
-        node_count.push_back(count);
+    position.assert_position();
+    int count = 0;
+    std::vector<Move> legal_moves = gen_legal_moves(position);
+    if (depth == 1) {
+        return legal_moves.size();
     }
-    return node_count;
+    for (Move move : gen_legal_moves(position)) {
+        position.make_move(move);
+        position.assert_position();
+        count += perft(position, depth - 1);
+        position.unmake_move(move);
+        position.assert_position();
+    }
+    return count;
+}
+
+void divide(Position& position, int depth) {
+    long total = 0;
+    auto legal_moves = gen_legal_moves(position);
+    if (depth == 1) {
+        total = legal_moves.size();
+        for (Move move : legal_moves) {
+            std::cout << notation::simple_pretty_move(move) << ": 1" << std::endl;
+        }
+    } else {
+        for (Move move : legal_moves) {
+            position.make_move(move);
+            long count = perft(position, depth - 1);
+            position.unmake_move(move);
+            total += count;
+            std::cout << notation::simple_pretty_move(move) << ": " << count << std::endl;
+        }
+    }
+    std::cout << "Moves: " << legal_moves.size() << std::endl;
+    std::cout << "Nodes: " << total << std::endl;
 }
