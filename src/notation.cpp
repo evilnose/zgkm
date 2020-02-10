@@ -117,7 +117,11 @@ std::string notation::simple_pretty_move(Move mv) {
         Square king_src = color == WHITE ? SQ_E1 : SQ_E8;
         return square_str(king_src) + square_str(utils::king_castle_target(color, side));
     } else {
-        return square_str(get_move_source(mv)) + square_str(get_move_target(mv));
+        std::string ret = square_str(get_move_source(mv)) + square_str(get_move_target(mv));
+        if (get_move_type(mv) == PROMOTION) {
+            ret += std::tolower(piece_char(get_move_promotion(mv)));
+        }
+        return ret;
     }
 }
 

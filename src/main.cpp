@@ -157,10 +157,11 @@ void test_unmake() {
 }
 
 void run_divide() {
-    // std::string my_str = "r3k2r/p1ppq1b1/bn2pnp1/4N2Q/1p2P3/2N4p/PPPBBPPP/R3K2R b KQkq - 0 1";
-    std::string my_str = STARTING_FEN;
+    std::string my_str = "r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10 ";
+    // std::string my_str = "r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1R1K b kq - 0 1";
+    // std::string my_str = "r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/P2P2PP/r2Q1R1K w kq - 0 1";
     std::istringstream iss = std::istringstream(my_str);
     Position pos(iss);
     
-    divide(pos, 6);
+    divide(pos, 5);
 }

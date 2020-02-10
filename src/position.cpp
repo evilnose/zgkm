@@ -211,7 +211,8 @@ void Position::make_move(Move move) {
             // new piece replaces captured piece
 
             // remove castling rights for opponent if rook captured
-            if (tgt_piece == ROOK && (tgt_mask & ROOK_FILES)) {
+            if (tgt_piece == ROOK &&
+                (tgt_mask & ROOK_FILES & (tgt_color == WHITE ? RANK_A : RANK_H))) {
                 BoardSide side = (BoardSide)(!utils::sq_file(tgt));
                 castling_rights &= ~utils::to_castling_rights(tgt_color, side);
             }
