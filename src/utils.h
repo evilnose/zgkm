@@ -95,6 +95,11 @@ inline Square rook_castle_source(Color c, BoardSide side) {
     return ROOK_CASTLING_SOURCE[c][side];
 }
 
+// return the actual square the enpassant pawn is located, not the capture square
+inline Square enpassant_actual(Bitboard enp_sq, Color color) {
+    return (Square)(enp_sq + utils::pawn_direction(color) * 8);
+}
+
 // returns (int) 1 if val > 0, 0 if == 0, -1 if < 0.
 template <typename T>
 int sgn(T val) {

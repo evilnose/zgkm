@@ -100,11 +100,16 @@ void Position::load_fen(std::istream& fen_is) {
     char side_to_move;
     std::string castling_rights;
     std::string enpassant_square;
-    std::string halfmove_clock;
-    std::string fullmove_number;
+    int halfmove_clock;
+    int fullmove_number;
     fen_is >> side_to_move;
     fen_is >> castling_rights >> enpassant_square;
-    fen_is >> halfmove_clock >> fullmove_number;
+    if (fen_is >> halfmove_clock) {
+        fen_is >> fullmove_number;
+    } else {
+        halfmove_clock = 0;
+        fullmove_number = 1;
+    }
     assert(side_to_move == 'w' || side_to_move == 'b');
 
     set_side_to_move((Color)(side_to_move == 'b'));
@@ -144,8 +149,8 @@ void Position::load_fen(std::istream& fen_is) {
         set_enpassant(N_SQUARES);
     }
 
-    set_halfmove_clock(std::stoi(halfmove_clock));
-    set_fullmove_number(std::stoi(fullmove_number));
+    set_halfmove_clock(halfmove_clock);
+    set_fullmove_number(fullmove_number);
 }
 
 void Position::make_move(Move move) {

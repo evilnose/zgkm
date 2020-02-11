@@ -221,7 +221,10 @@ vector<Move> gen_legal_moves(const Position& pos) {
                 pawn_mask | (bboard::pawn_attacks(sq, atk_c) & def_occ));
 
             if (bboard::pawn_attacks(sq, atk_c) & enpassant) {
-                add_enpassant(moves, sq, enpassant_sq);
+                Bitboard xray = (all_occ & ~bboard::mask_square(sq) &
+                    ~bboard::mask_square(utils::enpassant_actual(enpassant_sq, def_c))) | enpassant;
+                if (!(bboard::rook_attacks(king_sq, xray) & (pos.get_bitboard(def_c, ROOK) | pos.get_bitboard(def_c, QUEEN))))
+                    add_enpassant(moves, sq, enpassant_sq);
             }
         }
 
@@ -420,7 +423,7 @@ vector<Move> gen_legal_moves(const Position& pos) {
             }
         }
 
-        // pinned pawns cannot possibly help evade check
+        // pinned pieces cannot possibly help evade check
 
         // knights
         Bitboard free_knights = pos.get_bitboard(atk_c, KNIGHT) & ~pinned;
