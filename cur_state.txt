@@ -1,3 +1,4 @@
-Records the current state of this project for my references
-NEED TO START:
-* undo_move
+Move gen looks OK, but needs testing with more depth and optimizations.
+
+To do that, I need to implement UCI for easy external perft testing of movegen.
+That requires threading. So I'll return after some more time spent on MIT OCW.
