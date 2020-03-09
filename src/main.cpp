@@ -2,6 +2,7 @@
 #include "movegen.h"
 #include "notation.h"
 #include "utils.h"
+#include "uci.h"
 
 #include <cassert>
 
@@ -12,13 +13,21 @@ void test_unmake();
 void run_divide();
 
 int main(int argc, char* argv[]) {
+
+	/* Actual main code */
     bboard::initialize();
+	UCI::initialize();
+
+	UCI::loop();
+
+	/* END Actual main code */
     // basic_tests();
     // print_moves("./fixtures/temp.fen");
     // test_perft();
-    run_divide();
+    //run_divide();
     // test_unmake();
     return 0;
+
 }
 
 // temporary test functions before the code is developed enough
