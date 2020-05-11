@@ -1,11 +1,13 @@
 #pragma once
 
-#include "types.h"
-
+#include <algorithm>
 #include <cassert>
+#include <cctype>
+#include <locale>
 #include <random>
 #include <string>
 
+#include "types.h"
 
 namespace utils {
 
@@ -42,21 +44,19 @@ inline CastlingRights to_castling_rights(Color c, BoardSide side) {
 
 // TODO optimize this if necessary
 inline CastlingRights to_castling_rights(Color c) {
-    return utils::to_castling_rights(c, KINGSIDE) | utils::to_castling_rights(c, QUEENSIDE);
+    return utils::to_castling_rights(c, KINGSIDE) |
+           utils::to_castling_rights(c, QUEENSIDE);
 }
 
 // /* read from file and trim all whitespace; output to buf */
 void read_and_trim(std::string fname, char buf[]);
 
-// pseudorandom number generator
+// pseudorandom number generator using xorshift* (https://en.wikipedia.org/wiki/Xorshift)
 class PRNG {
-    // std::random_device rd;
-    std::mt19937_64 gen;
-    std::uniform_int_distribution<long long int> dist;
     U64 state;
 
    public:
-    PRNG(U64 seed) : gen(seed), state(seed) {}
+    PRNG(U64 seed) : state(seed) {}
 
     U64 rand64() {
         // return dist(gen);
@@ -79,9 +79,9 @@ inline int pawn_direction(Color c) { return 1 - static_cast<int>(c) * 2; }
 
 // KING_CASTLING_TARGET[i][j] returns the king target square for color i
 // and boardside j.
-static Square KING_CASTLING_TARGET[2][2] { { SQ_G1, SQ_C1 }, { SQ_G8, SQ_C8 } };
-static Square ROOK_CASTLING_TARGET[2][2] { { SQ_F1, SQ_D1 }, { SQ_F8, SQ_D8 } };
-static Square ROOK_CASTLING_SOURCE[2][2] { { SQ_H1, SQ_A1 }, { SQ_H8, SQ_A8 } };
+static Square KING_CASTLING_TARGET[2][2]{{SQ_G1, SQ_C1}, {SQ_G8, SQ_C8}};
+static Square ROOK_CASTLING_TARGET[2][2]{{SQ_F1, SQ_D1}, {SQ_F8, SQ_D8}};
+static Square ROOK_CASTLING_SOURCE[2][2]{{SQ_H1, SQ_A1}, {SQ_H8, SQ_A8}};
 
 inline Square king_castle_target(Color c, BoardSide side) {
     return KING_CASTLING_TARGET[c][side];
@@ -95,7 +95,8 @@ inline Square rook_castle_source(Color c, BoardSide side) {
     return ROOK_CASTLING_SOURCE[c][side];
 }
 
-// return the actual square the enpassant pawn is located, not the capture square
+// return the actual square the enpassant pawn is located, not the capture
+// square
 inline Square enpassant_actual(Bitboard enp_sq, Color color) {
     return (Square)(enp_sq + utils::pawn_direction(color) * 8);
 }
@@ -106,4 +107,27 @@ int sgn(T val) {
     return (T(0) < val) - (val < T(0));
 }
 
+/* String functions */
+
+// The below trim functions (ltrim, rtrim, trim) are from Stack Overflow "jotik"
+// https://stackoverflow.com/a/217605
+// trim from start (in place)
+inline void ltrim(std::string& s) {
+    s.erase(s.begin(), std::find_if(s.begin(), s.end(),
+                                    [](int ch) { return !std::isspace(ch); }));
+}
+
+// trim from end (in place)
+inline void rtrim(std::string& s) {
+    s.erase(std::find_if(s.rbegin(), s.rend(),
+                         [](int ch) { return !std::isspace(ch); })
+                .base(),
+            s.end());
+}
+
+// trim from both ends (in place)
+inline void trim(std::string& s) {
+    ltrim(s);
+    rtrim(s);
+}
 }  // namespace utils

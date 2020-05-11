@@ -1,13 +1,11 @@
-#include "movegen.h"
-#include "bitboard.h"
-#include "utils.h"
-
 #include <cassert>
 #include <queue>
 
-// TODO remove; for debugging
-#include <iostream>
+#include "movegen.h"
+#include "bitboard.h"
+#include "utils.h"
 #include "notation.h"
+#include "logger.h"
 
 using std::vector;
 
@@ -99,78 +97,11 @@ void test_absolute_pins(Position& position) {
     Bitboard pinned = absolute_pins(position, BLACK, pinner);
     std::string pinned_repr = utils::repr(pinned);
     std::string pinner_repr = utils::repr(pinner);
-    std::cout << "Pinned:\n" << pinned_repr << std::endl;
-    std::cout << "Pinner:\n" << pinner_repr << std::endl;
+    LOG(logINFO) << "Pinned:\n" << pinned_repr;
+    LOG(logINFO) << "Pinner:\n" << pinner_repr;
 }
 
-/*
-Main movegen function pseudocode
-
-function main_movegen:
-    checks = get_attacks_at(king_square)
-    pinned, pinner = get_my_pins(...)
-    move_list = []
-
-    if checks == 0:
-
-    for each my_knight:
-        if pinned & my_knight.mask != 0:
-            continue
-        else:
-            knight_mask = knight_mask_db[my_knight.square]
-            knight_mask &= ~my_occupancy    # can't jump on own pieces
-            extract_move_mask(knight_mask, my_knight.square, KNIGHT, move_list)
-
-    for each my_bishop:
-        bishop_mask = bishop_mask(my_bishop) & ~my_occupancy
-        if pinned & my_bishop.mask != 0:
-            if my_bishop and my_king on same diagonal (not rank/file):
-                # restrict bishop movement to the pinned diagonal
-                bishop_mask &= get_diagonal(my_king.square, my_bishop.square)
-            else:
-                # bishop can't move
-                continue
-
-        extract_move_mask(bishop_mask, ...)
-
-    for each my_rook:
-        rook_mask = ...
-        if pinned & my_rook.mask != 0:
-            if my_rook and my_king on same rank/file:
-                rook_mask &= get_rook_rank_mask(...)
-            else:
-                # rook can't move
-                continue
-
-        extract_move_mask(rook_mask, ...)
-
-    for each my_queen:
-        queen_mask = ...
-        if pinned & my_queen.mask != 0:
-            if my_queen and my_king on same diagonal:
-                queen_mask &= get_rook_rank_mask(...)
-            else: # must be on same diagonal
-                queen_mask &= get_diagonal(...)
-
-        extract_move_mask(queen_mask, ...)
-
-    # TODO pawns
-
-    else if checks == 1:
-
-    else if checks == 2:
-
-endfunc
-
-function extract_move_mask(move_mask, origin_square, piece_type, move_list):
-    # extracts bits from move_mask as target squares for the piece at origin
-    # square, creating a Move object and appending it to move_list.
-    ...
-endfunc
-
-*/
 vector<Move> gen_legal_moves(const Position& pos) {
-    // TODO weird enpassant pin
     Color atk_c = pos.get_side_to_move();
     Color def_c = utils::opposite_color(atk_c);
     Bitboard atk_occ = pos.get_color_bitboard(atk_c);
@@ -458,7 +389,8 @@ vector<Move> gen_legal_moves(const Position& pos) {
     return moves;
 }
 
-int perft(Position& position, int depth) {
+int perft(const Position& pos, int depth) {
+    Position position = pos; // make copy here
     position.assert_position();
     int count = 0;
     std::vector<Move> legal_moves = gen_legal_moves(position);
@@ -481,7 +413,7 @@ void divide(Position& position, int depth) {
     if (depth == 1) {
         total = legal_moves.size();
         for (Move move : legal_moves) {
-            std::cout << notation::simple_pretty_move(move) << ": 1" << std::endl;
+            LOG(logINFO) << notation::simple_pretty_move(move) << ": 1";
         }
     } else {
         for (Move move : legal_moves) {
@@ -489,9 +421,9 @@ void divide(Position& position, int depth) {
             long count = perft(position, depth - 1);
             position.unmake_move(move);
             total += count;
-            std::cout << notation::simple_pretty_move(move) << ": " << count << std::endl;
+            LOG(logINFO) << notation::simple_pretty_move(move) << ": " << count;
         }
     }
-    std::cout << "Moves: " << legal_moves.size() << std::endl;
-    std::cout << "Nodes: " << total << std::endl;
+    LOG(logINFO) << "Moves: " << legal_moves.size();
+    LOG(logINFO) << "Nodes: " << total;
 }

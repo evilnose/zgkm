@@ -4,7 +4,7 @@ SDIR = src
 ODIR = obj
 TDIR = test
 SOURCES = bitboard.cpp main.cpp movegen.cpp position.cpp types.cpp utils.cpp \
-		  notation.cpp
+		  notation.cpp uci.cpp logger.cpp
 _TESTS = test_bitboard.cpp
 TESTS = $(patsubst %,$(_TESTS)/%,$(TDIR))
 _OBJECTS = $(SOURCES:.cpp=.o)
@@ -12,7 +12,7 @@ OBJECTS = $(patsubst %,$(ODIR)/%,$(_OBJECTS))
 INC = -Iinclude/
 LINK = 
 
-CFLAGS := -std=c++14
+CFLAGS := -std=c++17 -Wall
 CFLAGS_DEBUG := -Wall -g -O0
 CFLAGS_RELEASE := -DNDEBUG -O3
 
@@ -50,4 +50,5 @@ $(OUT): $(OBJECTS) .buildmode
 
 clean:
 	rm -f $(OUT)
-	rm -f $(ODIR)
+	rm -f $(ODIR)/*
+	rm -f *.exp

@@ -4,6 +4,7 @@
 
 #include "bitboard.h"
 #include "utils.h"
+#include "logger.h"
 
 using std::string;
 
@@ -75,8 +76,7 @@ void b_init_occupancies() {
 
         bboard::b_magics[sq].occupancy_mask = rel_occupancy;
 
-        // soft TODO: optimize for 32 bit
-        // https://www.chessprogramming.org/Magic_Bitboards#32-bit_Magics
+        // NOTE assuming 64 bit
         bboard::b_magics[sq].shift = 64 - utils::popcount(rel_occupancy);
     }
 }
@@ -98,8 +98,7 @@ void r_init_occupancies() {
         assert(mask);
         bboard::r_magics[sq].occupancy_mask = mask;
 
-        // soft TODO: optimize for 32 bit
-        // https://www.chessprogramming.org/Magic_Bitboards#32-bit_Magics
+        // NOTE assuming 64 bit
         bboard::r_magics[sq].shift = 64 - utils::popcount(mask);
     }
 }
@@ -111,7 +110,7 @@ void gen_magics(bboard::MagicInfo magics[], Bitboard table[],
                 Direction directions[]) {
     Bitboard reference[4096];  // 2^12, largest size of occ set of any square
     Bitboard occupancy[4096];
-    unsigned long long seed = 322;  // TODO find good seeds
+    unsigned long long seed = 322;  // soft TODO find good seeds
     int ord = 0;                    // ordinality; used as index for reference[]
     for (Square sq = SQ_A1; sq <= SQ_H8; sq++) {
         Bitboard rel_occupancy = magics[sq].occupancy_mask;
@@ -134,8 +133,6 @@ void gen_magics(bboard::MagicInfo magics[], Bitboard table[],
         bool good = true;
         // try 100 million times
         for (int k = 0; k < 100000000; k++) {
-            // TODO generate magics in a loop until a magic is found to be correct
-            // ALSO magic needs to have a certain number of nonzero bits
             magics[sq].magic = (Bitboard)prng.rand64_sparse();
             // need certain bit density
             if (utils::popcount((magics[sq].magic * rel_occupancy) >> 56) < 6)
@@ -179,13 +176,11 @@ void gen_magics(bboard::MagicInfo magics[], Bitboard table[],
                 }
             }
             if (good) {
-                // printf("Magic found. Collisions: %d; size: %d, trials: %d\n",
-                //        collisions, ord, k);
                 break;
             }
         }
         if (!good) {
-            printf("ERROR: magic not found.");
+            LOG(logERROR) << "magic not found";
         }
     }
 }
@@ -296,12 +291,12 @@ void init_attack_tables(void) {
 }  // namespace
 
 void bboard::initialize() {
-    printf("Initializing magics...\n");
+    LOG(logDEBUG) << "Initializing magics...";
     init_magic();
-    printf("Done.\n");
-    printf("Initializing other attacks...\n");
+    LOG(logDEBUG) << "Done.";
+    LOG(logDEBUG) << "Initializing other attacks...\n";
     init_attack_tables();
-    printf("Done.\n");
+    LOG(logDEBUG) << "Done.";
 }
 
 unsigned int bboard::MagicInfo::get_index(Bitboard occupancy) {
@@ -309,7 +304,7 @@ unsigned int bboard::MagicInfo::get_index(Bitboard occupancy) {
 }
 
 void test_magics() {
-    printf("Magic initialized. Testing... \n");
+    LOG(logINFO) << "Magic initialized. Testing...";
 
     for (Square sq = SQ_A1; sq <= SQ_H8; sq++) {
         bboard::MagicInfo m = bboard::b_magics[sq];
@@ -317,14 +312,11 @@ void test_magics() {
         Bitboard n = 0ULL;
         do {
             Bitboard att = m.table[m.get_index(n)];
-            if (sliding_attacks(sq, n, b_directions) != att) {
-                printf("Assertion failed for test_magic\n");
-                return;
-            }
+            assert(sliding_attacks(sq, n, b_directions) == att);
             n = (n - occ) & occ;
         } while (n != 0ULL);
     }
-    std::cout << "Magics tested for bishop" << std::endl;
+    LOG(logINFO) << "Magic tested for bishops";
 
     for (Square sq = SQ_A1; sq <= SQ_H8; sq++) {
         bboard::MagicInfo m = bboard::r_magics[sq];
@@ -332,14 +324,12 @@ void test_magics() {
         Bitboard n = 0ULL;
         do {
             Bitboard att = m.table[m.get_index(n)];
-            if (sliding_attacks(sq, n, r_directions) != att) {
-                printf("assertion failed\n");
-                return;
-            }
+            assert(sliding_attacks(sq, n, r_directions) == att);
             n = (n - occ) & occ;
         } while (n != 0ULL);
     }
-    std::cout << "Magics tested for rook" << std::endl;
+    LOG(logINFO) << "Magic tested for rooks";
+    LOG(logINFO) << "Done.";
 }
 
 Bitboard bboard::blocker(Square s1, Square s2, Bitboard occ) {

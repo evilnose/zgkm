@@ -15,4 +15,7 @@ obj/
 # Vim
 **/*.swp
 
+# Expect
+*.exp
+
 temp

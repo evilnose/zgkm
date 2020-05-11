@@ -12,6 +12,6 @@ bool move_allowed(const Position &position, const Move &move);
 void test_absolute_pins(Position& position);
 
 // generate move count for perft
-int perft(Position& position, int depth);
+int perft(const Position& position, int depth);
 
-void divide(Position& position, int depth);
+void divide(const Position& position, int depth);

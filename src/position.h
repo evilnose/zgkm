@@ -16,6 +16,7 @@ struct PosState {
 
 class Position {
    public:
+    // initialize to starting position
     Position();
 
 	/*
@@ -28,6 +29,14 @@ class Position {
      * for visual purposes.
 	 */
     Position(std::istream& fen_is);
+
+    ~Position() = default;
+
+    // NOTE history is NOT copied
+    Position(const Position& other);
+
+    // NOTE history is NOT copied
+    Position& operator=(const Position& other);
 
     // NOTE does not compare halfmove_clock
     bool operator==(const Position& other) const;
@@ -92,10 +101,6 @@ class Position {
 
     inline Bitboard get_enpassant() const { return enpassant_mask; };
 
-	// clears everything and resets all states. i.e. empty board
-	// and starting castling rights
-	void clear();
-
 	void set_piece(Square sq, Color c, PieceType piece);
 
     // void remove_piece(Square sq);
@@ -131,12 +136,12 @@ class Position {
     }
 
     // returns whether king of the side to move is in check
-    bool is_checking();
+    bool is_checking() const;
 
-    bool is_game_over();
+    bool is_game_over() const;
 
     // basic assertions about the integrity of data fields
-    void assert_position();
+    void assert_position() const;
 
    private:
     Color side_to_move;
@@ -154,6 +159,9 @@ class Position {
 	int fullmove_number;
 
     std::stack<PosState> history;
+
+    // clear all pieces and state
+    void clear();
 };
 
 static std::string STARTING_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";

@@ -1,43 +1,75 @@
 
 #include "position.h"
-#include "movegen.h"
-#include "utils.h"
 
 #include <cassert>
 #include <cctype>
 #include <istream>
+#include <sstream>
+
+#include "movegen.h"
+#include "utils.h"
 
 using std::string;
 using std::vector;
 
 namespace {}  // namespace
 
-Position::Position()
-    : side_to_move{WHITE},
-      castling_rights{ALL_CASTLING_RIGHTS},
-      piece_bitboards{},
-      color_bitboards{},
-      enpassant_mask{},
-      halfmove_clock{0},
-      fullmove_number{1} {}
+Position::Position() {
+    // initialization of members is done in load_fen
+    std::istringstream iss(STARTING_FEN);
+    load_fen(iss);
+}
 
 Position::Position(std::istream& fen_is)
     : piece_bitboards{}, color_bitboards{} {
+    // initialization of members is done in load_fen
     load_fen(fen_is);
 }
 
+Position::Position(const Position& other)
+    : side_to_move{other.side_to_move},
+      castling_rights{other.castling_rights},
+      piece_bitboards{other.piece_bitboards},
+      color_bitboards{other.color_bitboards},
+      enpassant_mask{other.enpassant_mask},
+      halfmove_clock{other.halfmove_clock},
+      fullmove_number{other.fullmove_number} {}
+
+Position& Position::operator=(const Position& other) {
+    side_to_move = other.side_to_move;
+    castling_rights = other.castling_rights;
+    piece_bitboards = other.piece_bitboards;
+    color_bitboards = other.color_bitboards;
+    enpassant_mask = other.enpassant_mask;
+    halfmove_clock = other.halfmove_clock;
+    fullmove_number = other.fullmove_number;
+    return *this;
+}
+
 bool Position::operator==(const Position& other) const {
-    if (side_to_move != other.side_to_move) { return false; }
-    
-    if (castling_rights != other.castling_rights) { return false; }
+    if (side_to_move != other.side_to_move) {
+        return false;
+    }
 
-    if (fullmove_number != other.fullmove_number) { return false; }
+    if (castling_rights != other.castling_rights) {
+        return false;
+    }
 
-    if (enpassant_mask != other.enpassant_mask) { return false; }
+    if (fullmove_number != other.fullmove_number) {
+        return false;
+    }
 
-    if (piece_bitboards != other.piece_bitboards) { return false; }
+    if (enpassant_mask != other.enpassant_mask) {
+        return false;
+    }
 
-    if (color_bitboards != other.color_bitboards) { return false; }
+    if (piece_bitboards != other.piece_bitboards) {
+        return false;
+    }
+
+    if (color_bitboards != other.color_bitboards) {
+        return false;
+    }
 
     return true;
 }
@@ -47,6 +79,7 @@ bool Position::operator!=(const Position& other) const {
 }
 
 void Position::load_fen(std::istream& fen_is) {
+    clear();
     for (int row = 0; row < 8; row++) {
         int col = 0;
         while (col < 8) {
@@ -85,9 +118,6 @@ void Position::load_fen(std::istream& fen_is) {
                         set_piece(sq, c, KING);
                         break;
                     default:
-                        if (piece_char != '.') {
-                            printf("%c\n", piece_char);
-                        }
                         assert(piece_char == '.');
                         break;
                 }
@@ -216,8 +246,8 @@ void Position::make_move(Move move) {
             // new piece replaces captured piece
 
             // remove castling rights for opponent if rook captured
-            if (tgt_piece == ROOK &&
-                (tgt_mask & ROOK_FILES & (tgt_color == WHITE ? RANK_A : RANK_H))) {
+            if (tgt_piece == ROOK && (tgt_mask & ROOK_FILES &
+                                      (tgt_color == WHITE ? RANK_A : RANK_H))) {
                 BoardSide side = (BoardSide)(!utils::sq_file(tgt));
                 castling_rights &= ~utils::to_castling_rights(tgt_color, side);
             }
@@ -272,7 +302,7 @@ void Position::make_move(Move move) {
 }
 
 void Position::unmake_move(Move move) {
-    assert(history.size());
+    assert(history.size() != 0);
     MoveType type = get_move_type(move);
     PosState last_state = history.top();
     history.pop();
@@ -475,8 +505,6 @@ Bitboard Position::get_attack_mask(Color col) const {
     return mask;
 }
 
-void Position::clear() {}
-
 void Position::set_piece(Square sq, Color c, PieceType piece) {
     Bitboard mask = bboard::mask_square(sq);
     piece_bitboards[(int)piece] |= mask;
@@ -484,33 +512,46 @@ void Position::set_piece(Square sq, Color c, PieceType piece) {
     color_bitboards[(int)c] |= mask;
 }
 
-bool Position::is_checking() {
+bool Position::is_checking() const {
     Color atk_c = get_side_to_move();
     Square king_sq = bboard::bitscan_fwd(get_bitboard(atk_c, KING));
     return get_attackers(king_sq, utils::opposite_color(atk_c)) != 0ULL;
 }
 
 // TODO this is actually a big deal
-bool Position::is_game_over() {
+bool Position::is_game_over() const {
     // TODO once finished, update pretty_move
     return false;
 }
 
-void Position::assert_position() {
+void Position::assert_position() const {
     assert(!(is_checking() && is_game_over()));
-    
+
     Bitboard piece_mask = 0ULL;
     for (PieceType pt = PAWN; pt != ANY_PIECE; pt = (PieceType)(pt + 1)) {
         assert(!(piece_mask & piece_bitboards[pt]));
         piece_mask |= piece_bitboards[pt];
     }
     for (PieceType pt = PAWN; pt != ANY_PIECE; pt = (PieceType)(pt + 1)) {
-        assert((piece_bitboards[pt] | piece_bitboards[ANY_PIECE]) == piece_bitboards[ANY_PIECE]);
+        assert((piece_bitboards[pt] | piece_bitboards[ANY_PIECE]) ==
+               piece_bitboards[ANY_PIECE]);
     }
     assert(piece_mask == piece_bitboards[ANY_PIECE]);
 
     assert(!(color_bitboards[WHITE] & color_bitboards[BLACK]));
-    assert((color_bitboards[WHITE] | color_bitboards[BLACK]) == piece_bitboards[ANY_PIECE]);
+    assert((color_bitboards[WHITE] | color_bitboards[BLACK]) ==
+           piece_bitboards[ANY_PIECE]);
+}
+
+void Position::clear() {
+    side_to_move = WHITE;
+    castling_rights = ALL_CASTLING_RIGHTS;
+    piece_bitboards = {};
+    color_bitboards = {};
+    enpassant_mask = {};
+	halfmove_clock = 0;
+	fullmove_number = 1;
+    history = {};
 }
 
 // void Position::remove_piece(Square sq, Color c, PieceType piece) {
