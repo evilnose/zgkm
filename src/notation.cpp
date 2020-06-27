@@ -26,8 +26,7 @@ inline char piece_char(PieceType piece) {
 }
 
 std::string notation::pretty_move(Move mv, const std::vector<Move>& legal_moves,
-                                  const Position& pos, bool checking,
-                                  bool mating) {
+                                  const Position& pos, bool checking) {
     char buf[8] = "O-\0\0\0\0\0";  // kingside castle by default
     int bufidx = 0;
     MoveType mt = get_move_type(mv);
@@ -39,8 +38,7 @@ std::string notation::pretty_move(Move mv, const std::vector<Move>& legal_moves,
         Color color;
         PieceType piece;
         Square src_sq = get_move_source(mv);
-        bool got = pos.get_piece(src_sq, color, piece);
-        assert(got);
+        pos.get_piece(src_sq, color, piece);
         if (piece == PAWN) {
             if (is_capture) {
                 buf[bufidx++] = file_char(utils::sq_file(src_sq));
@@ -93,6 +91,7 @@ std::string notation::pretty_move(Move mv, const std::vector<Move>& legal_moves,
             buf[bufidx++] = piece_char(get_move_promotion(mv));
         }
 
+        bool mating = checking && legal_moves.size() == 0;
         // Final suffix
         if (checking) {
             buf[bufidx++] = '+';

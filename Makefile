@@ -1,10 +1,10 @@
-#CC = g++
-CC = clang++
+CC = g++
+#CC = clang-8
 SDIR = src
 ODIR = obj
 TDIR = test
 SOURCES = bitboard.cpp main.cpp movegen.cpp position.cpp types.cpp utils.cpp \
-		  notation.cpp uci.cpp logger.cpp
+		notation.cpp uci.cpp logger.cpp parallel.cpp evaluate.cpp search.cpp
 _TESTS = test_bitboard.cpp
 TESTS = $(patsubst %,$(_TESTS)/%,$(TDIR))
 _OBJECTS = $(SOURCES:.cpp=.o)

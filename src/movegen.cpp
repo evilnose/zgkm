@@ -101,7 +101,7 @@ void test_absolute_pins(Position& position) {
     LOG(logINFO) << "Pinner:\n" << pinner_repr;
 }
 
-vector<Move> gen_legal_moves(const Position& pos) {
+bool gen_legal_moves(const Position& pos, vector<Move>& moves) {
     Color atk_c = pos.get_side_to_move();
     Color def_c = utils::opposite_color(atk_c);
     Bitboard atk_occ = pos.get_color_bitboard(atk_c);
@@ -119,7 +119,6 @@ vector<Move> gen_legal_moves(const Position& pos) {
     Bitboard enpassant = pos.get_enpassant();
     Square enpassant_sq = bboard::bitscan_fwd(enpassant);
 
-    vector<Move> moves;
     add_moves(moves, king_sq, king_attacks);  // add king moves regardless
 
     if (n_checks == 0) {
@@ -386,30 +385,32 @@ vector<Move> gen_legal_moves(const Position& pos) {
                       bboard::queen_attacks(sq, all_occ) & check_mask);
         }
     }  // else only king moves are legal, and nothing more needs to be done
-    return moves;
+    return n_checks == 0;
 }
 
 int perft(const Position& pos, int depth) {
     Position position = pos; // make copy here
-    position.assert_position();
+    assert(pos.position_good());
     int count = 0;
-    std::vector<Move> legal_moves = gen_legal_moves(position);
+    std::vector<Move> legal_moves;
+    gen_legal_moves(position, legal_moves);
     if (depth == 1) {
         return legal_moves.size();
     }
-    for (Move move : gen_legal_moves(position)) {
+    for (Move move : legal_moves) {
         position.make_move(move);
-        position.assert_position();
+        assert(position.position_good());
         count += perft(position, depth - 1);
         position.unmake_move(move);
-        position.assert_position();
+        assert(position.position_good());
     }
     return count;
 }
 
 void divide(Position& position, int depth) {
     long total = 0;
-    auto legal_moves = gen_legal_moves(position);
+    vector<Move> legal_moves;
+    gen_legal_moves(position, legal_moves);
     if (depth == 1) {
         total = legal_moves.size();
         for (Move move : legal_moves) {

@@ -85,6 +85,7 @@ void Position::load_fen(std::istream& fen_is) {
         while (col < 8) {
             // multiplied by 9 to skip the separator
             char piece_char;
+            assert(fen_is && fen_is.peek() != EOF);
             fen_is >> piece_char;
             if (std::isdigit(piece_char)) {
                 col += (piece_char - '0');
@@ -188,6 +189,7 @@ void Position::make_move(Move move) {
     PosState cur_state{NO_PIECE, castling_rights, enpassant_mask,
                        halfmove_clock};
     enpassant_mask = 0ULL;
+    halfmove_clock++;  // increment halfmove_clock by default
 
     if (type == CASTLING_MOVE) {
         Color color = get_move_castle_color(move);
@@ -232,13 +234,14 @@ void Position::make_move(Move move) {
         Color tgt_color;
         PieceType src_piece;
         PieceType tgt_piece;
+        bool is_capture = false;  // used later for 50-move rule
 
         // remove captured piece if move is capture
         // NOTE: does NOT account for EP
         if (get_all_bitboard() & tgt_mask) {
-            bool good = get_piece(tgt, tgt_color, tgt_piece);
+            is_capture = true;
+            get_piece(tgt, tgt_color, tgt_piece);
             cur_state.captured_piece = tgt_piece;
-            assert(good);  // must have piece there
             // only remove if piece exists
             piece_bitboards[tgt_piece] &= ~tgt_mask;
             color_bitboards[tgt_color] &= ~tgt_mask;
@@ -255,8 +258,7 @@ void Position::make_move(Move move) {
 
         // remove src piece from its src location
         // do this for all move types here
-        bool good = get_piece(src, src_color, src_piece);
-        assert(good);
+        get_piece(src, src_color, src_piece);
         fullmove_number += (int)src_color;
         piece_bitboards[src_piece] &= ~src_mask;
         piece_bitboards[ANY_PIECE] &= ~src_mask;
@@ -278,6 +280,7 @@ void Position::make_move(Move move) {
             // don't need the following line b/c enpassant implies pawn
             // cur_state.captured_piece = tgt_piece;
         } else if (src_piece == PAWN && abs((int)tgt - (int)src) == 16) {
+            // double pawn push, so update en-passant mask
             // TODO no-branch-if in condition?
             enpassant_mask =
                 bboard::mask_square((Square)(((int)tgt + (int)src) / 2));
@@ -295,6 +298,9 @@ void Position::make_move(Move move) {
             BoardSide side = (BoardSide)(!utils::sq_file(src));
             castling_rights &= ~utils::to_castling_rights(src_color, side);
         }
+
+        // for 50-move rule. If is capture or piece is pawn, reset halfmove_clock
+        halfmove_clock *= !(is_capture || src_piece == PAWN);
     }
 
     history.push(cur_state);
@@ -353,8 +359,7 @@ void Position::unmake_move(Move move) {
 
         // remove src piece from tgt location
         // do this for all move types here
-        bool good = get_piece(tgt, src_color, src_piece);
-        assert(good);
+        get_piece(tgt, src_color, src_piece);
         fullmove_number -= (int)src_color;
         piece_bitboards[src_piece] &= ~tgt_mask;
         piece_bitboards[ANY_PIECE] &= ~tgt_mask;
@@ -422,8 +427,9 @@ Bitboard Position::get_attackers(Square target_sq, Color atk_color) const {
     return mask;
 }
 
+#include <iostream>
 // TODO add more members in Position to make this more optimized
-bool Position::get_piece(Square sq, Color& c_out, PieceType& p_out) const {
+void Position::get_piece(Square sq, Color& c_out, PieceType& p_out) const {
     Bitboard mask = bboard::mask_square(sq);
     Color c;
     if (mask & get_color_bitboard(WHITE)) {
@@ -431,7 +437,9 @@ bool Position::get_piece(Square sq, Color& c_out, PieceType& p_out) const {
     } else if (mask & get_color_bitboard(BLACK)) {
         c = BLACK;
     } else {
-        return false;
+        std::cout << sq << std::endl;
+        std::cout << p_out << std::endl;
+        assert(false);
     }
 
     PieceType p;
@@ -448,12 +456,11 @@ bool Position::get_piece(Square sq, Color& c_out, PieceType& p_out) const {
     } else if (mask & get_piece_bitboard(KING)) {
         p = KING;
     } else {
-        return false;
+        assert(false);
     }
 
     c_out = c;
     p_out = p;
-    return true;
 }
 
 Bitboard Position::get_attack_mask(Color col) const {
@@ -518,29 +525,44 @@ bool Position::is_checking() const {
     return get_attackers(king_sq, utils::opposite_color(atk_c)) != 0ULL;
 }
 
-// TODO this is actually a big deal
-bool Position::is_game_over() const {
-    // TODO once finished, update pretty_move
-    return false;
+bool Position::is_won_slow() const {
+    std::vector<Move> moves;
+    // checking and no moves
+    return gen_legal_moves(*this, moves) && moves.size() == 0;
 }
 
-void Position::assert_position() const {
-    assert(!(is_checking() && is_game_over()));
+bool Position::is_stalemate_slow() const {
+    std::vector<Move> moves;
+    // checking and no moves
+    return !gen_legal_moves(*this, moves) && moves.size() == 0;
+}
 
+bool Position::position_good() const {
     Bitboard piece_mask = 0ULL;
     for (PieceType pt = PAWN; pt != ANY_PIECE; pt = (PieceType)(pt + 1)) {
-        assert(!(piece_mask & piece_bitboards[pt]));
+        if (piece_mask & piece_bitboards[pt]) {
+            return false;
+        }
         piece_mask |= piece_bitboards[pt];
     }
     for (PieceType pt = PAWN; pt != ANY_PIECE; pt = (PieceType)(pt + 1)) {
-        assert((piece_bitboards[pt] | piece_bitboards[ANY_PIECE]) ==
-               piece_bitboards[ANY_PIECE]);
+        if ((piece_bitboards[pt] | piece_bitboards[ANY_PIECE]) !=
+               piece_bitboards[ANY_PIECE]) {
+                   return false;
+        }
     }
-    assert(piece_mask == piece_bitboards[ANY_PIECE]);
+    if (piece_mask != piece_bitboards[ANY_PIECE]) {
+        return false;
+    }
 
-    assert(!(color_bitboards[WHITE] & color_bitboards[BLACK]));
-    assert((color_bitboards[WHITE] | color_bitboards[BLACK]) ==
-           piece_bitboards[ANY_PIECE]);
+    if (color_bitboards[WHITE] & color_bitboards[BLACK]) {
+        return false;
+    }
+    if ((color_bitboards[WHITE] | color_bitboards[BLACK]) !=
+           piece_bitboards[ANY_PIECE]) {
+               return false;
+    }
+    return true;
 }
 
 void Position::clear() {
@@ -549,8 +571,8 @@ void Position::clear() {
     piece_bitboards = {};
     color_bitboards = {};
     enpassant_mask = {};
-	halfmove_clock = 0;
-	fullmove_number = 1;
+    halfmove_clock = 0;
+    fullmove_number = 1;
     history = {};
 }
 

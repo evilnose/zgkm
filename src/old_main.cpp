@@ -97,11 +97,12 @@ void basic_tests() {
     printf("Reading from %s...\n", fname2);
     assert(infile.good());
     pos2.load_fen(infile);
-    std::vector<Move> moves = gen_legal_moves(pos2);
+    std::vector<Move> moves;
+    bool is_checking = gen_legal_moves(pos2, moves);
     printf("Found %zd legal moves:\n", moves.size());
     for (Move mv : moves) {
         // assuming no check or mate
-        std::cout << notation::pretty_move(mv, moves, pos2, false, false)
+        std::cout << notation::pretty_move(mv, moves, pos2, is_checking)
                   << std::endl;
     }
     printf("Done.\n");
@@ -109,7 +110,7 @@ void basic_tests() {
     printf("Testing make_move...(continuing from movegen)\n");
     for (Move mv : moves) {
         std::cout << "Applying move: "
-                  << notation::pretty_move(mv, moves, pos2, false, false)
+                  << notation::pretty_move(mv, moves, pos2, is_checking)
                   << std::endl;
         Position copy = pos2;
         copy.make_move(mv);
@@ -123,11 +124,12 @@ void print_moves(const char* fname) {
     printf("Reading from %s...\n", fname);
     assert(infile.good());
     Position pos(infile);
-    std::vector<Move> moves = gen_legal_moves(pos);
+    std::vector<Move> moves;
+    bool is_checking = gen_legal_moves(pos, moves);
     printf("Found %zd legal moves:\n", moves.size());
     for (Move mv : moves) {
         // assuming no check or mate
-        std::cout << notation::pretty_move(mv, moves, pos, false, false)
+        std::cout << notation::pretty_move(mv, moves, pos, is_checking)
                   << std::endl;
     }
     printf("Done.\n");

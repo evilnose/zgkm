@@ -2,12 +2,14 @@
 
 #include <cinttypes>
 #include <cassert>
+#include <string>
 
 using Bitboard = uint64_t;
 using I8 = int8_t;
 using U64 = uint64_t;
 using Move = unsigned short;
 using CastlingRights = unsigned char;
+using Score = float;
 
 constexpr Bitboard RANK_A = 0xFF;
 constexpr Bitboard RANK_B = RANK_A << 8;
@@ -64,6 +66,9 @@ enum Square: uint8_t {
     N_SQUARES
 };
 
+constexpr char STARTING_FEN[] = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+constexpr char KIWIPETE_FEN[] = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1";
+
 Square& operator++(Square& square);
 Square operator++(Square& square, int);
 
@@ -88,16 +93,6 @@ enum BoardSide {
 };
 
 /*
-struct Move {
-    MoveType type;
-    Color side;
-    // could use a union here but barely saves any space
-    Square src_square;
-    Square dst_square;
-    BoardSide castle_side;
-};
-*/
-/*
 Move representation
 bits 0-1: promotion piece (4; 0->KNIGHT, ... 3->QUEEN)
 bits 2-3: move type (4)
@@ -108,6 +103,7 @@ constexpr int MOVE_LEN = 16;
 constexpr Move MOVE_TARGET_MASK = 0xFC00;
 constexpr Move MOVE_SOURCE_MASK = 0x3F0;
 constexpr Move MOVE_PROMOTION_MASK = 0x3;
+constexpr Move NULL_MOVE = 0;
 
 // Move helper functions
 inline Square get_move_target(Move mv) {
@@ -119,7 +115,7 @@ inline Square get_move_source(Move mv) {
 }
 
 inline Color get_move_castle_color(Move mv) {
-	return (Color)(mv >> (MOVE_LEN - 6));
+    return (Color)(mv >> (MOVE_LEN - 6));
 }
 
 inline BoardSide get_move_castle_side(Move mv) {
@@ -161,3 +157,8 @@ extern CastlingRights BLACK_OO;
 extern CastlingRights BLACK_OOO;
 extern CastlingRights NO_CASTLING_RIGHTS;
 extern CastlingRights ALL_CASTLING_RIGHTS;
+
+constexpr Score SCORE_NEG_INFTY = -1000000;
+constexpr Score SCORE_POS_INFTY = 1000000;
+// Score for drawing the opponent. Might want to make this adjustable in the future
+constexpr Score SCORE_DRAW = 0;

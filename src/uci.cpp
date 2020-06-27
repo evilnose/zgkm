@@ -1,6 +1,7 @@
 #include "uci.h"
 #include "movegen.h"
 #include "utils.h"
+#include "search.h"
 
 #include <iostream>
 #include <sstream>
@@ -67,7 +68,13 @@ void delegate_command(const string& command, istringstream& liness) {
             } else if (subcommand == "movestogo") {
                 cout << "not implemented" << endl;
             } else if (subcommand == "depth") {
-                cout << "not implemented" << endl;
+                cout << "TODO make this command non-blocking" << endl;
+                unsigned int depth;
+                if (liness >> depth) {
+                    // TODO make this UCI-compliant
+                    SearchResult result = depth_search(position, depth);
+                    cout << "bestmove " << result.best_move << " eval " << result.eval << endl;;
+                }
             } else if (subcommand == "nodes") {
                 cout << "not implemented" << endl;
             } else if (subcommand == "mate") {

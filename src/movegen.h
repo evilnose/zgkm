@@ -5,7 +5,9 @@
 
 #include "position.h"
 
-std::vector<Move> gen_legal_moves(const Position& position);
+// generate legal moves and return through the output vector. Return whether the side to move is
+// being checked.
+bool gen_legal_moves(const Position& position, std::vector<Move>& out_moves);
 
 bool move_allowed(const Position &position, const Move &move);
 

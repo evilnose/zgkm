@@ -34,7 +34,7 @@ legal_moves:    All legal moves
 move_idx:       Index of the move that should be printed
 */
 std::string pretty_move(Move mv, const std::vector<Move>& legal_moves,
-                        const Position& pos, bool checking, bool mating);
+                        const Position& pos, bool checking);
 
 std::string simple_pretty_move(Move mv);
 
