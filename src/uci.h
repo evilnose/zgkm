@@ -1,6 +1,7 @@
 #pragma once
 
-namespace UCI {
+namespace uci {
 void initialize(int argc, char* argv[]);
 void loop();
+void cleanup();
 }  // namespace UCI

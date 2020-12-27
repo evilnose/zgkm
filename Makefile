@@ -4,7 +4,7 @@ SDIR = src
 ODIR = obj
 TDIR = test
 SOURCES = bitboard.cpp main.cpp movegen.cpp position.cpp types.cpp utils.cpp \
-		notation.cpp uci.cpp logger.cpp parallel.cpp evaluate.cpp search.cpp
+		notation.cpp uci.cpp logger.cpp parallel.cpp evaluate.cpp search.cpp threading.cpp
 _TESTS = test_bitboard.cpp
 TESTS = $(patsubst %,$(_TESTS)/%,$(TDIR))
 _OBJECTS = $(SOURCES:.cpp=.o)
@@ -29,7 +29,7 @@ $(shell echo nodebug > .buildmode)
 endif
 endif
 
-OUT = out/chess 
+OUT = out/zgkm
 
 .PHONY: clean
 

@@ -4,6 +4,11 @@
 #include <sstream>
 
 enum loglevel_e { logERROR, logWARNING, logINFO, logDEBUG };
+using EndlType = std::ostringstream& (*)(std::ostringstream&);
+
+// for simple endl
+typedef std::basic_ostream<char, std::char_traits<char> > CerrType;
+typedef CerrType& (*StandardEndLine)(CerrType&);
 
 // project-wide log level. NOTE when this is changed, do make -B
 #ifdef NDEBUG
@@ -12,15 +17,20 @@ constexpr loglevel_e loglevel = logERROR;
 constexpr loglevel_e loglevel = logDEBUG;
 #endif
 
-class logIt {
+class LogIt {
    public:
-    logIt(loglevel_e _loglevel = logERROR);
+    LogIt(loglevel_e _loglevel);
 
-    ~logIt();
+    ~LogIt();
 
     template <typename T>
-    logIt& operator<<(T const& value) {
+    LogIt& operator<<(const T & value) {
         _buffer << value;
+        return *this;
+    }
+
+    LogIt& operator<<(StandardEndLine endl_) {
+        _buffer << endl_;
         return *this;
     }
 
@@ -30,4 +40,4 @@ class logIt {
 
 #define LOG(level) \
 if constexpr (level > loglevel) ; \
-else logIt(level)
+else LogIt(level)

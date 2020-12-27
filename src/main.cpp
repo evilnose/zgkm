@@ -8,11 +8,9 @@
 #include "utils.h"
 
 int main(int argc, char* argv[]) {
-    bboard::initialize();
+    uci::initialize(argc, argv);
 
-    UCI::initialize(argc, argv);
-
-    UCI::loop();
+    uci::loop();
 
     return 0;
 }

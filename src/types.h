@@ -54,6 +54,9 @@ enum PieceType {
     N_PIECE_TYPES
 };
 
+// i.e. PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING
+constexpr int N_REAL_PIECE_TYPES = (int) KING + 1;
+
 enum Square: uint8_t {
     SQ_A1 = 0, SQ_B1, SQ_C1, SQ_D1, SQ_E1, SQ_F1, SQ_G1, SQ_H1,
     SQ_A2, SQ_B2, SQ_C2, SQ_D2, SQ_E2, SQ_F2, SQ_G2, SQ_H2,

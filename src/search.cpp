@@ -1,43 +1,58 @@
-#include <cassert>
-
 #include "search.h"
 #include "movegen.h"
 
-namespace {
+#include <cassert>
+#include <chrono>
+#include <thread>
+
+namespace
+{
     // DFS
-    Score alpha_beta_search(Position& pos, int depth, Score alpha, Score beta) {
+    Score alpha_beta_search(Position &pos, int depth, Score alpha, Score beta)
+    {
         assert(depth >= 0);
         assert(pos.position_good());
 
-        if (depth == 0) {
-            return evaluate(pos);
+        if (depth == 0)
+        {
+            return material_only_eval(pos);
         }
 
         std::vector<Move> moves;
         bool checking = gen_legal_moves(pos, moves);
 
-        if (pos.is_drawn_by_50()) {
+        if (pos.is_drawn_by_50())
+        {
             return SCORE_DRAW;
         }
 
-        if (moves.size() == 0) {
-            if (checking) {
+        if (moves.size() == 0)
+        {
+            if (checking)
+            {
                 // I lose
                 return SCORE_NEG_INFTY;
-            } else {
+            }
+            else
+            {
                 return SCORE_DRAW;
             }
-        } else {
-            for (Move move: moves) {
+        }
+        else
+        {
+            for (Move move : moves)
+            {
                 pos.make_move(move);
                 assert(pos.position_good());
                 Score s = -alpha_beta_search(pos, depth - 1, -beta, -alpha);
                 pos.unmake_move(move);
-                if (s >= beta) {
+                if (s >= beta)
+                {
                     // opponent's upper bound broken. So curr pos will not be allowed
                     return beta;
                 }
-                if (s > alpha) {
+                if (s > alpha)
+                {
                     // update my guarantee
                     alpha = s;
                 }
@@ -45,9 +60,65 @@ namespace {
         }
         return alpha;
     }
-}  // namespace
 
-SearchResult depth_search(const Position& orig_pos, int depth) {
+    // search with the given remaining X and O times, allocating how much time to spend automatically
+    // time all in millis
+    void search(const Position &pos, int btime, int wtime, int binc, int cinc, ResultCallback callback)
+    {
+        assert(!pos.is_over_slow());
+        int my_time = pos.get_side_to_move() == Color::BLACK ? btime : wtime;
+        // allocate time; very basic for now: assumes 40 moves in total, and make it at least 3 secs
+        int time_alloc = my_time / (40 - pos.get_fullmove_number());
+        time_alloc = std::max(time_alloc, 3000);
+
+        std::vector<Move> moves;
+        gen_legal_moves(pos, moves);
+        // iterative deepening loop
+        int depth = 2;
+        Position localpos = pos;
+        Score eval = SCORE_NEG_INFTY;
+        auto start = utils::now_in_millis();
+        while (depth <= 20)
+        {
+            Score alpha = SCORE_NEG_INFTY;
+            Move best = NULL_MOVE;
+            for (Move move : moves)
+            {
+                localpos.make_move(move);
+                SearchResult result = depth_search(localpos, depth - 1);
+                auto elapsed = utils::now_in_millis() - start;
+                // time's up
+                if (time_alloc - elapsed < 100)
+                {
+                    return;
+                }
+                localpos.make_move(move);
+                Score res = -alpha_beta_search(localpos, depth - 1, alpha, SCORE_POS_INFTY);
+                localpos.unmake_move(move);
+                if (res > alpha)
+                {
+                    alpha = res;
+                    best = move;
+                }
+                localpos.unmake_move(move);
+            }
+            assert(best != NULL_MOVE);
+
+            // reinsert best move as the first move in the vector, so that it is explored first in the
+            // next iteration
+            moves.erase(find(moves.begin(), moves.end(), best));
+            moves.insert(moves.begin(), best);
+            eval = alpha * color_multiplier(pos.get_side_to_move());
+            depth++;
+        }
+
+        assert(eval != SCORE_NEG_INFTY);
+        callback(moves[0], eval);
+    }
+} // namespace
+
+SearchResult depth_search(const Position &orig_pos, int depth)
+{
     assert(depth >= 1);
 
     Position pos = orig_pos;
@@ -63,13 +134,15 @@ SearchResult depth_search(const Position& orig_pos, int depth) {
     assert(moves.size() != 0 && !pos.is_drawn_by_50());
 
     Move best_move = NULL_MOVE;
-    for (Move move: moves) {
+    for (Move move : moves)
+    {
         pos.make_move(move);
         assert(pos.position_good());
         Score s = -alpha_beta_search(pos, depth - 1, -beta, -alpha);
         pos.unmake_move(move);
         assert(pos.position_good());
-        if (s > alpha) {
+        if (s > alpha)
+        {
             best_move = move;
             alpha = s;
         }
@@ -77,8 +150,14 @@ SearchResult depth_search(const Position& orig_pos, int depth) {
 
     assert(best_move != NULL_MOVE);
 
-    return SearchResult {
+    return SearchResult{
         best_move,
         alpha * color_multiplier(pos.get_side_to_move()),
     };
+}
+
+void timed_search(const Position &pos, int btime, int wtime, int binc, int cinc,
+                  ResultCallback callback)
+{
+    std::thread thd(search, pos, btime, wtime, binc, cinc, callback);
 }
