@@ -36,7 +36,10 @@ move_idx:       Index of the move that should be printed
 std::string pretty_move(Move mv, const std::vector<Move>& legal_moves,
                         const Position& pos, bool checking);
 
-std::string simple_pretty_move(Move mv);
+// UCI format move
+std::string dump_uci_move(Move mv);
+
+Move parse_uci_move(const Position& pos, const std::string& mv_str);
 
 // TODO
 std::string info_move(Move mv);
@@ -48,4 +51,8 @@ std::string to_fen(const Position& pos);
 // same as to_fen but with '/' replaced with '\n'
 // and all empty squares represented by '.'
 std::string to_aligned_fen(const Position& pos);
+
+// return PAWN for 'p', KNIGHT for 'n', etc., *case sensitively*. NO_PIECE is returned if pch is
+// not recognized.
+PieceType parse_piece_char(char pch);
 }  // namespace notation

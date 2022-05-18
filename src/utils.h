@@ -3,10 +3,10 @@
 #include <algorithm>
 #include <cassert>
 #include <cctype>
+#include <chrono>
 #include <locale>
 #include <random>
 #include <string>
-#include <chrono>
 
 using namespace std::chrono;
 
@@ -54,7 +54,8 @@ inline CastlingRights to_castling_rights(Color c) {
 // /* read from file and trim all whitespace; output to buf */
 void read_and_trim(std::string fname, char buf[]);
 
-// pseudorandom number generator using xorshift* (https://en.wikipedia.org/wiki/Xorshift)
+// pseudorandom number generator using xorshift*
+// (https://en.wikipedia.org/wiki/Xorshift)
 class PRNG {
     U64 state;
 
@@ -98,8 +99,7 @@ inline Square rook_castle_source(Color c, BoardSide side) {
     return ROOK_CASTLING_SOURCE[c][side];
 }
 
-// return the actual square the enpassant pawn is located, not the capture
-// square
+// return the actual square the enpassant pawn is located, not the captured square
 inline Square enpassant_actual(Bitboard enp_sq, Color color) {
     return (Square)(enp_sq + utils::pawn_direction(color) * 8);
 }
@@ -108,6 +108,11 @@ inline Square enpassant_actual(Bitboard enp_sq, Color color) {
 template <typename T>
 int sgn(T val) {
     return (T(0) < val) - (val < T(0));
+}
+
+// returns 1 if color is WHITE and -1 if BLACK.
+inline float color_multiplier(Color color) {
+    return 1.0 - ((float) color) * 2;
 }
 
 /* String functions */
@@ -134,16 +139,34 @@ inline void trim(std::string& s) {
     rtrim(s);
 }
 
-template <template<class, class, class...> class C, typename K, typename V, typename... Args>
-inline V get_or_default(const C<K, V, Args...>& m, K const& key, const V & defval)
-{
+template <template <class, class, class...> class C, typename K, typename V,
+          typename... Args>
+inline V get_or_default(const C<K, V, Args...>& m, K const& key,
+                        const V& defval) {
     typename C<K, V, Args...>::const_iterator it = m.find(key);
-    if (it == m.end())
-        return defval;
+    if (it == m.end()) return defval;
     return it->second;
 }
 
-inline unsigned long long now_in_millis() {
-    return duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
-}
+class Timer {
+   public:
+    Timer() { zero(); }
+
+    inline void zero() {
+        start = system_clock::now();
+    }
+
+    inline double elapsed_secs() {
+        auto cur = system_clock::now();
+        std::chrono::duration<double> elapsed_seconds = cur - start;
+        return elapsed_seconds.count();
+    }
+
+    inline double elapsed_millis() {
+        return elapsed_secs() * 1000;
+    }
+
+   private:
+    system_clock::time_point start;
+};  // class Timer
 }  // namespace utils

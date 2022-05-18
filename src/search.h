@@ -6,19 +6,10 @@
 
 #include <functional>
 
-// TODO replace best_move by PV
-struct SearchResult
-{
+// TODO add PV
+struct SearchResult {
     Move best_move;
     Score eval;
-};
-
-enum SearchLimitType
-{
-    UNLIMITED,  // no limit
-    TIME_CONTROL,  // limited by remaining black & white time and inc
-    FIXED_TIME,  // fixed amount of time
-    NODES,  // number of nodes searched
 };
 
 struct TimeControlParams {
@@ -28,12 +19,11 @@ struct TimeControlParams {
     int binc;
 };
 
-// Conditions for stopping a search
-union SearchLimit
-{
-    TimeControlParams time_control;
+struct SearchLimit {
+    TimeControlParams tc;
     int fixed_time;
     int nodes;
+    int depth;
 };
 
 using ResultCallback = std::function<void(Move best, Score eval)>;
@@ -43,5 +33,5 @@ using ResultCallback = std::function<void(Move best, Score eval)>;
 SearchResult depth_search(const Position &pos, int depth);
 
 // basic parallel search using one thread
-void timed_search(const Position &pos, int btime, int wtime, int binc, int cinc,
-                  ResultCallback callback);
+// void timed_search(const Position &pos, int btime, int wtime, int binc, int cinc,
+//                   ResultCallback callback);

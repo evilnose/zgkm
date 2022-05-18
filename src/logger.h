@@ -29,10 +29,10 @@ class LogIt {
         return *this;
     }
 
-    LogIt& operator<<(StandardEndLine endl_) {
-        _buffer << endl_;
-        return *this;
-    }
+    // LogIt& operator<<(StandardEndLine endl_) {
+    //     _buffer << endl_;
+    //     return *this;
+    // }
 
    private:
     std::ostringstream _buffer;

@@ -9,3 +9,8 @@ amount of time the values and quiescence from the threads, and if we deem it hel
 continue searching and check again after a while; otherwise we'll return.
 * `cout` is *not* synchronized across threads. This is probably not a big deal, but if there is..
 time in the future, I should write a synchronized one that is lock-based.
+
+
+## Major TODOs
+* Refactor: Currently MainThread and Thread duties are all jumbled up, since parallel search is..
+not yet implemented. Once we start on that, though, the two classes must be split clean.

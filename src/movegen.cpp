@@ -43,7 +43,7 @@ Bitboard absolute_pins(const Position& pos, Color pinned_color,
 inline void add_moves(vector<Move>& moves, Square src, Bitboard tgts) {
     while (tgts != 0ULL) {
         Square sq = bboard::bitscan_fwd_remove(tgts);
-        Move tmp = create_normal_move(sq, src);
+        Move tmp = create_normal_move(src, sq);
         moves.push_back(tmp);
     }
 }
@@ -55,7 +55,7 @@ inline void add_promotion_moves(vector<Move>& moves, Square src,
         Square sq = bboard::bitscan_fwd_remove(tgts);
         for (PieceType piece = KNIGHT; piece <= QUEEN;
              piece = (PieceType)(piece + 1)) {
-            Move tmp = create_promotion_move(sq, src, piece);
+            Move tmp = create_promotion_move(src, sq, piece);
             moves.push_back(tmp);
         }
     }
@@ -71,7 +71,7 @@ inline void add_pawn_moves(vector<Move>& moves, Square src, Bitboard tgts) {
 }
 
 inline void add_enpassant(vector<Move>& moves, Square src, Square tgt) {
-    moves.push_back(create_enpassant(tgt, src));
+    moves.push_back(create_enpassant(src, tgt));
 }
 
 inline void add_castling_move(vector<Move>& moves, Color c, BoardSide side) {
@@ -80,7 +80,7 @@ inline void add_castling_move(vector<Move>& moves, Color c, BoardSide side) {
 
 /*
 inline void add_specific_promotion_move(vector<Move>& moves, Square src, Square
-tgt, PieceType target_piece) { moves.push_back(create_promotion_move(tgt, src,
+tgt, PieceType target_piece) { moves.push_back(create_promotion_move(src, tgt,
 target_piece));
 }
 */
@@ -385,7 +385,7 @@ bool gen_legal_moves(const Position& pos, vector<Move>& moves) {
                       bboard::queen_attacks(sq, all_occ) & check_mask);
         }
     }  // else only king moves are legal, and nothing more needs to be done
-    return n_checks == 0;
+    return n_checks != 0;
 }
 
 int perft(const Position& pos, int depth) {
@@ -414,7 +414,7 @@ void divide(Position& position, int depth) {
     if (depth == 1) {
         total = legal_moves.size();
         for (Move move : legal_moves) {
-            LOG(logINFO) << notation::simple_pretty_move(move) << ": 1";
+            LOG(logINFO) << notation::dump_uci_move(move) << ": 1";
         }
     } else {
         for (Move move : legal_moves) {
@@ -422,7 +422,7 @@ void divide(Position& position, int depth) {
             long count = perft(position, depth - 1);
             position.unmake_move(move);
             total += count;
-            LOG(logINFO) << notation::simple_pretty_move(move) << ": " << count;
+            LOG(logINFO) << notation::dump_uci_move(move) << ": " << count;
         }
     }
     LOG(logINFO) << "Moves: " << legal_moves.size();

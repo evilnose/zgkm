@@ -4,6 +4,7 @@
 #include "search.h"
 #include "threading.h"
 #include "logger.h"
+#include "notation.h"
 
 #include <iostream>
 #include <iterator>
@@ -18,9 +19,6 @@ using std::cerr;
 using std::endl;
 using std::istringstream;
 using std::string;
-using threading::ThreadPool;
-
-static ThreadPool* pool;
 
 void run_position(istringstream &iss)
 {
@@ -36,14 +34,29 @@ void run_position(istringstream &iss)
         std::getline(iss, fen);
         utils::trim(fen);
     }
+
+    string placeholder;
+    if ((iss >> placeholder) && placeholder != "moves") {
+        cerr << "Unknown token '" << placeholder << "'. Should be 'moves' instead." << endl;
+        return;
+    }
+    
     istringstream fen_ss(fen);
     Position pos(fen_ss);
-    pool->set_position(pos);
+
+    // parse and make moves
+    string move_str;
+    while (iss >> move_str) {
+        Move move = notation::parse_uci_move(pos, move_str);
+        pos.make_move(move);
+    }
+
+    thread::set_position(pos);
 }
 
 void run_go_perft(int depth)
 {
-    cerr << "Not implemented" << endl;
+    cerr << "go perft not implemented" << endl;
     //int result = perft(position, depth);
     //cout << result << endl;
 }
@@ -54,7 +67,8 @@ std::unordered_map<string, string> parse_keyvalue(istringstream &iss)
     auto it = std::istream_iterator<string>(iss);
 
     while (it != std::istream_iterator<string>()) {
-        ret[*it] = *(++it);
+        auto key = *it;
+        ret[key] = *(++it);
         it++;
     }
 
@@ -68,7 +82,7 @@ void delegate_command(const string &command, istringstream &liness)
 void uci::initialize(int argc, char *argv[])
 {
     bboard::initialize();
-    pool = new ThreadPool(1);
+    thread::set_num_threads(1);
 }
 
 void uci::loop()
@@ -76,6 +90,9 @@ void uci::loop()
     string line;
     istringstream liness;
     string command;
+    std::cerr << "ZGKM (alpha) by Gary Geng" << std::endl;
+    Position pos;
+    istringstream temp(STARTING_FEN);
     while (cin)
     {
         getline(cin, line);
@@ -90,19 +107,19 @@ void uci::loop()
             }
             else if (command == "debug")
             {
-                cout << "not implemented" << endl;
+                cerr << "debug not implemented" << endl;
             }
             else if (command == "isready")
             {
-                cout << "readyok" << endl;
+                cerr << "readyok" << endl;
             }
             else if (command == "setoption")
             {
-                cout << "not implemented" << endl;
+                cerr << "setoption not implemented" << endl;
             }
             else if (command == "ucinewgame")
             {
-                cout << "not implemented" << endl;
+                cerr << "ucinewgame not implemented" << endl;
             }
             else if (command == "position")
             {
@@ -131,29 +148,31 @@ void uci::loop()
                     continue;
                 }
 
-                SearchLimitType slimit_type;
                 SearchLimit slimit;
                 if (constraint == "wtime") {
                     int wtime = std::stoi(value);
                     int btime = std::stoi(args["btime"]);
                     int winc = std::stoi(utils::get_or_default(args, string("winc"), string("0")));
                     int binc = std::stoi(utils::get_or_default(args, string("binc"), string("0")));
-                    slimit_type = TIME_CONTROL;
-                    slimit.time_control = TimeControlParams{wtime, btime, winc, binc};
+                    slimit.tc = TimeControlParams{wtime, btime, winc, binc};
                     // TODO search in a new thread
-                    pool->start_search(slimit_type, slimit);
+                    thread::start_search(slimit);
 
                 } else if (constraint == "infinite") {
-                    LOG(logWARNING) << "infinite constraint not actually implemented." << endl;
-                    pool->start_search(slimit_type, slimit);
+                    LOG(logWARNING) << "infinite constraint not actually implemented.";
+                    thread::start_search(slimit);
                 } else {
-                    LOG(logERROR) << "Constraint not implemented: " << constraint << endl;
+                    LOG(logERROR) << "Constraint not implemented: " << constraint;
                 }
+            } else if (command == "stop") {
+                thread::stop_search();
+            } else {
+                LOG(logERROR) << "Unknown command: '" << command << "'";
             }
         }
     }
 }
 
 void uci::cleanup() {
-    delete pool;
+    thread::cleanup();
 }

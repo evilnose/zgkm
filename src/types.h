@@ -133,13 +133,14 @@ inline PieceType get_move_promotion(Move mv) {
     return (PieceType)((mv & MOVE_PROMOTION_MASK) + 1);
 }
 
-// move helper functions
-inline Move create_enpassant(Square tgt, Square src) {
+// BEGIN move helper functions
+// The 'tgt' argument should specify the square that the capturing pawn would move to.
+inline Move create_enpassant(Square src, Square tgt) {
     return (((Move)ENPASSANT) << 2) | ((Move)src << 4) |
            ((Move)tgt << 10);
 }
 
-inline Move create_normal_move(Square tgt, Square src) {
+inline Move create_normal_move(Square src, Square tgt) {
     return (((Move)NORMAL_MOVE) << 2) | ((Move)src << 4) | ((Move)tgt << 10);
 }
 
@@ -147,12 +148,13 @@ inline Move create_castling_move(Color c, BoardSide side) {
     return (((Move)CASTLING_MOVE) << 2) | ((Move)side << 4) | ((Move)c << 10);
 }
 
-inline Move create_promotion_move(Square tgt, Square src, PieceType target_piece) {
+inline Move create_promotion_move(Square src, Square tgt, PieceType target_piece) {
     assert(target_piece == QUEEN || target_piece == ROOK || target_piece == KNIGHT ||
             target_piece == BISHOP);
     return ((Move)target_piece - 1) | ((Move)PROMOTION << 2) | ((Move)src << 4)
         | ((Move)tgt << 10);
 }
+// END Move helper functions
 
 extern CastlingRights WHITE_OO;
 extern CastlingRights WHITE_OOO;

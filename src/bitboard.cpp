@@ -294,7 +294,7 @@ void bboard::initialize() {
     LOG(logDEBUG) << "Initializing magics...";
     init_magic();
     LOG(logDEBUG) << "Done.";
-    LOG(logDEBUG) << "Initializing other attacks...\n";
+    LOG(logDEBUG) << "Initializing other attacks...";
     init_attack_tables();
     LOG(logDEBUG) << "Done.";
 }
@@ -304,7 +304,7 @@ unsigned int bboard::MagicInfo::get_index(Bitboard occupancy) {
 }
 
 void test_magics() {
-    LOG(logINFO) << "Magic initialized. Testing...";
+    LOG(logDEBUG) << "Magic initialized. Testing...";
 
     for (Square sq = SQ_A1; sq <= SQ_H8; sq++) {
         bboard::MagicInfo m = bboard::b_magics[sq];

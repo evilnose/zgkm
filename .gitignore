@@ -1,5 +1,5 @@
 # third party
-include/
+third_party/
 
 # state tracker
 .buildmode
@@ -19,3 +19,6 @@ obj/
 *.exp
 
 temp
+*.log
+out.pgn
+

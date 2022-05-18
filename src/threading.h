@@ -12,8 +12,16 @@
 
 #include "position.h"
 #include "search.h"
+#include "utils.h"
 
-namespace threading {
+namespace thread {
+
+struct SearchState {
+   int nodes;
+   Move best_move;
+   Score best_eval;
+   int cur_depth;
+};
 
 // One thread represents one search task with one root node.
 class Thread {
@@ -21,25 +29,42 @@ class Thread {
     Thread();
     virtual ~Thread() {}
 
+    // set the root position
     void set_position(const Position& pos);
-    void set_search_limit(SearchLimitType limit_type, SearchLimit limit);
+    // set the limit of search
+    void set_search_limit(SearchLimit limit);
+    // reset temporary states such as SearchState
+    void reset();
+    // start searching; does not check if a searc is already in place.
     virtual void start_search();
+    // whether a search is already in place
     bool is_searching();
 
    private:
 
-    void search();
+	 // Am I the main thread?
+    bool am_main();
+
     void thread_func();
+    // helper search function using members such as SearchLimit.
+    void search();
+    // search for a fixed number of plies from root_pos, based on cur_depth and 
+    Score depth_search(Score alpha, Score beta, int depth);
+
+    bool check_return();
 
     std::thread inner_thread;
     std::condition_variable start_cv;
     std::mutex start_m;
     bool start_flag;
-    bool stop;
 
     Position root_pos;
-    SearchLimitType limit_type;
     SearchLimit limit;
+    SearchState state;
+    // zeroed at the start of search
+    utils::Timer timer;
+
+    float time_alloc;
 };  // class Thread
 
 // A single master thread is launched for each program. Normally it does
@@ -53,20 +78,10 @@ class MainThread : public Thread {
    private:
 };  // class MainThread
 
-class ThreadPool {
-   public:
-    ThreadPool(int n_threads);
-    ~ThreadPool();
+void set_num_threads(int n_threads);
+void start_search(SearchLimit limit);
+void stop_search();
+void set_position(const Position& pos);
+void cleanup();
 
-    void set_position(const Position& position);
-
-    // start searching
-    void start_search(SearchLimitType limit_type, SearchLimit limit);
-
-   private:
-    // list of threads. The one at 0th index is the main thread.
-    std::vector<Thread *> threads;
-
-    MainThread* main_thread();
-};
-}  // namespace threading
+}  // namespace thread

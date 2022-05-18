@@ -1,13 +1,13 @@
-
 #include "position.h"
+#include "movegen.h"
+#include "utils.h"
+#include "logger.h"
 
 #include <cassert>
 #include <cctype>
 #include <istream>
 #include <sstream>
-
-#include "movegen.h"
-#include "utils.h"
+#include <iostream>
 
 using std::string;
 using std::vector;
@@ -76,112 +76,6 @@ bool Position::operator==(const Position& other) const {
 
 bool Position::operator!=(const Position& other) const {
     return !(*this == other);
-}
-
-void Position::load_fen(std::istream& fen_is) {
-    clear();
-    for (int row = 0; row < 8; row++) {
-        int col = 0;
-        while (col < 8) {
-            // multiplied by 9 to skip the separator
-            char piece_char;
-            assert(fen_is && fen_is.peek() != EOF);
-            fen_is >> piece_char;
-            if (std::isdigit(piece_char)) {
-                col += (piece_char - '0');
-                assert(col <= 8);
-            } else {
-                Color c;
-                if (std::isupper(piece_char)) {
-                    c = WHITE;
-                    piece_char = std::tolower(piece_char);
-                } else {
-                    c = BLACK;
-                }
-                Square sq = utils::make_square(7 - row, col);
-                switch (piece_char) {
-                    case 'p':
-                        set_piece(sq, c, PAWN);
-                        break;
-                    case 'b':
-                        set_piece(sq, c, BISHOP);
-                        break;
-                    case 'n':
-                        set_piece(sq, c, KNIGHT);
-                        break;
-                    case 'r':
-                        set_piece(sq, c, ROOK);
-                        break;
-                    case 'q':
-                        set_piece(sq, c, QUEEN);
-                        break;
-                    case 'k':
-                        set_piece(sq, c, KING);
-                        break;
-                    default:
-                        assert(piece_char == '.');
-                        break;
-                }
-                col++;
-            }
-        }
-        // ignore row delimiter
-        fen_is.ignore();
-    }
-    char side_to_move;
-    std::string castling_rights;
-    std::string enpassant_square;
-    int halfmove_clock;
-    int fullmove_number;
-    fen_is >> side_to_move;
-    fen_is >> castling_rights >> enpassant_square;
-    if (fen_is >> halfmove_clock) {
-        fen_is >> fullmove_number;
-    } else {
-        halfmove_clock = 0;
-        fullmove_number = 1;
-    }
-    assert(side_to_move == 'w' || side_to_move == 'b');
-
-    set_side_to_move((Color)(side_to_move == 'b'));
-
-    CastlingRights c_rights = NO_CASTLING_RIGHTS;
-    if (castling_rights != "-") {
-        assert(castling_rights.length() <= 4);
-        for (auto it = castling_rights.begin(); it != castling_rights.end();
-             it++) {
-            switch (*it) {
-                case 'K':
-                    c_rights |= WHITE_OO;
-                    break;
-                case 'Q':
-                    c_rights |= WHITE_OOO;
-                    break;
-                case 'k':
-                    c_rights |= BLACK_OO;
-                    break;
-                case 'q':
-                    c_rights |= BLACK_OOO;
-                    break;
-                default:
-                    assert(false);
-                    break;
-            }
-        }
-    }
-    set_castling_rights(c_rights);
-
-    if (enpassant_square != "-") {
-        assert(enpassant_square.length() == 2);
-        set_enpassant(utils::make_square(enpassant_square[1] - '1',
-                                         enpassant_square[0] - 'a'));
-    } else {
-        // unset en-passant
-        set_enpassant(N_SQUARES);
-    }
-
-    set_halfmove_clock(halfmove_clock);
-    set_fullmove_number(fullmove_number);
 }
 
 void Position::make_move(Move move) {
@@ -282,8 +176,7 @@ void Position::make_move(Move move) {
         } else if (src_piece == PAWN && abs((int)tgt - (int)src) == 16) {
             // double pawn push, so update en-passant mask
             // TODO no-branch-if in condition?
-            enpassant_mask =
-                bboard::mask_square((Square)(((int)tgt + (int)src) / 2));
+            enpassant_mask = bboard::mask_square((Square)(((int)tgt + (int)src) / 2));
         }
 
         // place src piece at its new location
@@ -427,40 +320,36 @@ Bitboard Position::get_attackers(Square target_sq, Color atk_color) const {
     return mask;
 }
 
-#include <iostream>
 // TODO add more members in Position to make this more optimized
 void Position::get_piece(Square sq, Color& c_out, PieceType& p_out) const {
     Bitboard mask = bboard::mask_square(sq);
-    Color c;
     if (mask & get_color_bitboard(WHITE)) {
-        c = WHITE;
+        c_out = WHITE;
     } else if (mask & get_color_bitboard(BLACK)) {
-        c = BLACK;
+        c_out = BLACK;
     } else {
-        std::cout << sq << std::endl;
-        std::cout << p_out << std::endl;
+        LOG(logERROR) << "there is no piece at the given square!";
         assert(false);
+        exit(EXIT_FAILURE);
     }
 
-    PieceType p;
     if (mask & get_piece_bitboard(PAWN)) {
-        p = PAWN;
+        p_out = PAWN;
     } else if (mask & get_piece_bitboard(KNIGHT)) {
-        p = KNIGHT;
+        p_out = KNIGHT;
     } else if (mask & get_piece_bitboard(BISHOP)) {
-        p = BISHOP;
+        p_out = BISHOP;
     } else if (mask & get_piece_bitboard(ROOK)) {
-        p = ROOK;
+        p_out = ROOK;
     } else if (mask & get_piece_bitboard(QUEEN)) {
-        p = QUEEN;
+        p_out = QUEEN;
     } else if (mask & get_piece_bitboard(KING)) {
-        p = KING;
+        p_out = KING;
     } else {
+        LOG(logERROR) << "there is no piece at the given square!";
         assert(false);
+        exit(EXIT_FAILURE);
     }
-
-    c_out = c;
-    p_out = p;
 }
 
 Bitboard Position::get_attack_mask(Color col) const {

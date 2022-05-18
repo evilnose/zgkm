@@ -42,6 +42,7 @@ class Position {
 
     bool operator!=(const Position& other) const;
 
+    // Note: implemented in notation.cpp
     void load_fen(std::istream& fen_is);
 
     // Position(std::string ascii, Color side2move, const CastlingRights& cstate);
@@ -84,6 +85,11 @@ class Position {
         return piece_bitboards[ANY_PIECE];
     }
 
+    inline bool has_piece(Square sq) const {
+        return piece_bitboards[ANY_PIECE] & bboard::mask_square(sq);
+    };
+
+    // get color and piece type at the given square, but failing if no piece is there.
     void get_piece(Square sq, Color& c_out, PieceType& p_out) const;
 
     Bitboard get_attackers(Square target_sq, Color atk_color) const;
@@ -163,9 +169,9 @@ class Position {
     CastlingRights castling_rights;
     std::array<Bitboard, N_PIECE_TYPES - 1> piece_bitboards; // excludes NO_PIECE
     std::array<Bitboard, N_COLORS> color_bitboards;
-    /* zero if no en-passant last ply, else the capture mask of en-passant
-     * e.g. last ply a2-a4, enpassant would hold occupancy of a3.
-     */
+    //zero if no en-passant last ply, else the capture mask of en-passant
+    //e.g. last ply a2-a4, enpassant would hold occupancy of a3.
+    //
     Bitboard enpassant_mask;
 
     // number of halfmoves since the last capture or pawn advance
