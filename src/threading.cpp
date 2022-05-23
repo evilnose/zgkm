@@ -16,6 +16,11 @@ void pv() {
 void bestmove(Move move) {
     std::cout << "bestmove " << notation::dump_uci_move(move) << std::endl;
 }
+
+void info(Score score_cp) {
+    std::cout << "info score cp " << score_cp << std::endl;
+}
+
 }  // namespace uci
 
 namespace thread {
@@ -51,6 +56,10 @@ void set_position(const Position& pos) {
     }
 }
 
+const Position& get_position() {
+    return main_thread()->get_position();
+}
+
 void start_search(SearchLimit limit) {
     if (main_thread()->is_searching()) {
         // TODO change to blocking wait
@@ -82,6 +91,10 @@ Thread::Thread() : inner_thread(&Thread::thread_func, this), start_flag(false) {
 
 void Thread::set_position(const Position& pos) {
     root_pos = pos;
+}
+
+const Position& Thread::get_position() const {
+    return root_pos;
 }
 
 void Thread::set_search_limit(SearchLimit limit) {
@@ -126,9 +139,26 @@ void Thread::thread_func() {
 
 inline bool Thread::check_return() {
     // TODO add fixed time control, etc.
+    // multiply by 0.5 as a heuristic to estimate how much time the next iteration will take
     if (time_alloc != 0 && timer.elapsed_millis() > time_alloc) {
         assert(state.best_move != NULL_MOVE);
         if (am_main()) {
+            uci::info(state.best_eval);
+            uci::bestmove(state.best_move);
+        }
+        return true;
+    }
+    return false;
+}
+
+// check return based on a time control, if there is one
+inline bool Thread::check_tc_return() {
+    // TODO add fixed time control, etc.
+    // multiply by 0.5 as a heuristic to estimate how much time the next iteration will take
+    if (time_alloc != 0 && timer.elapsed_millis() > 0.6 * time_alloc) {
+        assert(state.best_move != NULL_MOVE);
+        if (am_main()) {
+            uci::info(state.best_eval);
             uci::bestmove(state.best_move);
         }
         return true;
@@ -138,16 +168,19 @@ inline bool Thread::check_return() {
 
 // TODO OPTIMIZE return directly if there is a single legal move
 void Thread::search() {
-
     time_alloc = 0;
     // set time limits
     if (limit.tc.wtime != 0) {
-        int my_time = root_pos.get_side_to_move() == Color::BLACK ? limit.tc.btime : limit.tc.wtime;
-        // allocate time; very basic and bad for now
-        // at least 50ms and at most 3000ms
-        time_alloc = my_time / std::abs(40 - root_pos.get_fullmove_number());
-        time_alloc = std::max(time_alloc, 50.f);
-        time_alloc = std::min(time_alloc, 3000.f);
+        // algorithm adapted from Cray Blitz by Robert Hyatt
+        // documented https://www.chessprogramming.org/Time_Management#Extra_Time
+        int time_left = root_pos.get_side_to_move() == Color::BLACK ? limit.tc.btime : limit.tc.wtime;
+
+        int n_moves = std::min(root_pos.get_fullmove_number(), 10);  // tune this number
+        float factor = 2 - n_moves / 10.f;
+
+        int moves_left = std::max(45 - n_moves, 5);
+        float target = time_left / moves_left;
+        time_alloc = target * factor;
     }
 
     timer.zero();
@@ -160,30 +193,27 @@ void Thread::search() {
     LOG(logDEBUG) << "Starting search";
 
     Move best_move = moves[0];
-    // TODO impose depth limit, if there is one
-    for (int depth = 4; depth < MAX_SEARCH_DEPTH; depth++) {
+    int best_move_idx = 0;
+    // set to 4 if there is no depth limit; otherwise set to min(4, target_depth) to avoid having
+    // a loop like (4..3), e.g. if target depth is 3
+    int start_depth = limit.depth == 0 ? 4 : std::min(4, limit.depth);
+    for (int depth = start_depth; ; depth++) {
+        if (limit.depth != 0 && depth > limit.depth) {
+            break;
+        }
+
         Score alpha = SCORE_NEG_INFTY;
 
         // search best move first
-        // TODO define macro
-        root_pos.make_move(best_move);
-        state.cur_depth = 0;
-        state.cur_depth++;
-        LOG(logDEBUG) << depth << ": starting depth search";
-        Score val = -depth_search(SCORE_NEG_INFTY, -alpha, depth);
-        LOG(logDEBUG) << depth << ": finishing depth search";
-        state.cur_depth--;
-        root_pos.unmake_move(best_move);
+        std::swap(moves[0], moves[best_move_idx]);
+        best_move_idx = 0;
 
-        if (check_return()) return;
-
-        for (Move move : moves) {
-            if (move == best_move) {
-                // already searched best move
-                continue;
-            }
+        // iterate over moves
+        for (unsigned i = 0; i < moves.size(); i++) {
+            Move move = moves[i];
 
             if (stop_flag.load()) {
+                // early stopping
                 return;
             }
 
@@ -199,6 +229,7 @@ void Thread::search() {
             if (val > alpha) {
                 alpha = val;
                 best_move = move;
+                best_move_idx = i;
             }
 
             if (check_return()) return;
@@ -207,8 +238,12 @@ void Thread::search() {
         // TODO later, update within the moves loop. But need to implement pv first.
         state.best_eval = alpha;
         state.best_move = best_move;
+
+        if (check_tc_return()) return;
     }
     LOG(logDEBUG) << "Finished search";
+    uci::info(state.best_eval);
+    uci::bestmove(state.best_move);
         // // reinsert best move as the first move in the vector, so that it is explored first in the
         // // next iteration
         // moves.erase(find(moves.begin(), moves.end(), best));
@@ -223,6 +258,8 @@ Score Thread::depth_search(Score alpha, Score beta, int depth) {
     if (root_pos.is_drawn_by_50()) {
         return SCORE_DRAW;
     }
+
+    // TODO check threefold repetition
 
     if (moves.size() == 0) {
         if (checking) {

@@ -5,6 +5,7 @@
 #include "threading.h"
 #include "logger.h"
 #include "notation.h"
+#include "hash.h"
 
 #include <iostream>
 #include <iterator>
@@ -24,15 +25,18 @@ void run_position(istringstream &iss)
 {
     string fen;
     iss >> fen;
+    Position pos;
     if (fen == "startpos")
     {
-        fen = STARTING_FEN;
+        // already default FEN
     }
     else
     {
-        assert(fen == "fen");
-        std::getline(iss, fen);
-        utils::trim(fen);
+        if (fen != "fen") {
+            cerr << "malformed command" << endl;;
+            return;
+        }
+        pos.load_fen(iss);
     }
 
     string placeholder;
@@ -40,9 +44,6 @@ void run_position(istringstream &iss)
         cerr << "Unknown token '" << placeholder << "'. Should be 'moves' instead." << endl;
         return;
     }
-    
-    istringstream fen_ss(fen);
-    Position pos(fen_ss);
 
     // parse and make moves
     string move_str;
@@ -56,9 +57,8 @@ void run_position(istringstream &iss)
 
 void run_go_perft(int depth)
 {
-    cerr << "go perft not implemented" << endl;
-    //int result = perft(position, depth);
-    //cout << result << endl;
+    int result = perft(thread::get_position(), depth);
+    cout << result << endl;
 }
 
 std::unordered_map<string, string> parse_keyvalue(istringstream &iss)
@@ -82,6 +82,7 @@ void delegate_command(const string &command, istringstream &liness)
 void uci::initialize(int argc, char *argv[])
 {
     bboard::initialize();
+    zobrist::initialize();
     thread::set_num_threads(1);
 }
 
@@ -90,7 +91,11 @@ void uci::loop()
     string line;
     istringstream liness;
     string command;
-    std::cerr << "ZGKM (alpha) by Gary Geng" << std::endl;
+    string ENGINE_NAME = "ZGKM";
+    #ifdef MAT_ONLY
+        ENGINE_NAME += "-MAT-ONLY";
+    #endif
+    std::cerr << ENGINE_NAME << " (alpha) by Gary Geng" << std::endl;
     Position pos;
     istringstream temp(STARTING_FEN);
     while (cin)
@@ -101,7 +106,7 @@ void uci::loop()
         {
             if (command == "uci")
             {
-                cout << "id name ZGKM 0.0\n";
+                cout << "id name " << ENGINE_NAME << endl;
                 cout << "id author Gary Geng" << endl;
                 cout << "uciok" << endl;
             }
@@ -129,7 +134,7 @@ void uci::loop()
             {
                 std::unordered_map<string, string> args = parse_keyvalue(liness);
 
-                std::vector<string> constraints{"wtime", "depth", "nodes", "mate", "movetime", "infinite"};
+                std::vector<string> constraints{"wtime", "depth", "nodes", "mate", "movetime", "infinite", "perft"};
                 bool constraint_found = false;
                 std::string constraint;
                 std::string value;
@@ -148,7 +153,7 @@ void uci::loop()
                     continue;
                 }
 
-                SearchLimit slimit;
+                SearchLimit slimit = {};
                 if (constraint == "wtime") {
                     int wtime = std::stoi(value);
                     int btime = std::stoi(args["btime"]);
@@ -156,14 +161,22 @@ void uci::loop()
                     int binc = std::stoi(utils::get_or_default(args, string("binc"), string("0")));
                     slimit.tc = TimeControlParams{wtime, btime, winc, binc};
                     // TODO search in a new thread
-                    thread::start_search(slimit);
-
+                } else if (constraint == "depth") {
+                    slimit.depth = std::stoi(value);
+                    assert(slimit.depth > 0);
                 } else if (constraint == "infinite") {
-                    LOG(logWARNING) << "infinite constraint not actually implemented.";
-                    thread::start_search(slimit);
+                    // Don't set any constraints
+                    // LOG(logWARNING) << "infinite constraint not actually implemented.";
+                } else if (constraint == "perft") {
+                    run_go_perft(std::stoi(value));
+                    continue;
                 } else {
                     LOG(logERROR) << "Constraint not implemented: " << constraint;
+                    return;
                 }
+
+                thread::start_search(slimit);
+
             } else if (command == "stop") {
                 thread::stop_search();
             } else {

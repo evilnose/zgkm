@@ -14,7 +14,7 @@ echo "perft testing started"
 cat << EOF > perft.exp
    set timeout 10
    lassign \$argv pos depth result
-   spawn ./out/chess
+   spawn ./out/zgkm.exe
    send "position \$pos\\ngo perft \$depth\\n"
    expect "\$result" {} timeout {exit 1}
    send "quit\\n"

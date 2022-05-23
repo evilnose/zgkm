@@ -4,7 +4,10 @@
 #include <cassert>
 #include <string>
 
+// #define MAT_ONLY
+
 using Bitboard = uint64_t;
+using ZobristKey = uint64_t;
 using I8 = int8_t;
 using U64 = uint64_t;
 using Move = unsigned short;
@@ -20,6 +23,8 @@ constexpr Bitboard RANK_F = RANK_E << 8;
 constexpr Bitboard RANK_G = RANK_F << 8;
 constexpr Bitboard RANK_H = RANK_G << 8;
 constexpr Bitboard PROMOTION_RANKS = RANK_A | RANK_H;
+constexpr Bitboard WHITE_HALF = RANK_A | RANK_B | RANK_C | RANK_D;
+constexpr Bitboard BLACK_HALF = ~WHITE_HALF;
 
 constexpr Bitboard ROOK_FILES = 0x8181818181818181;
 

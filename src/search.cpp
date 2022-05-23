@@ -7,6 +7,8 @@
 #include "movegen.h"
 #include "logger.h"
 
+// TODO refactor delete this file
+#if 0
 namespace {
 // DFS
 Score alpha_beta_search(Position &pos, int depth, Score alpha, Score beta) {
@@ -52,7 +54,6 @@ Score alpha_beta_search(Position &pos, int depth, Score alpha, Score beta) {
     return alpha;
 }
 
-#if 0
 // search with the given remaining X and O times, allocating how much time to
 // spend automatically time all in millis
 void search(const Position &pos, int btime, int wtime, int binc, int cinc,
@@ -105,7 +106,6 @@ void search(const Position &pos, int btime, int wtime, int binc, int cinc,
     assert(eval != SCORE_NEG_INFTY);
     callback(moves[0], eval);
 }
-#endif
 }  // namespace
 
 SearchResult depth_search(const Position &orig_pos, int depth) {
@@ -144,9 +144,9 @@ SearchResult depth_search(const Position &orig_pos, int depth) {
     };
 }
 
-#if 0
 void timed_search(const Position &pos, int btime, int wtime, int binc, int cinc,
                   ResultCallback callback) {
     std::thread thd(search, pos, btime, wtime, binc, cinc, callback);
 }
+
 #endif

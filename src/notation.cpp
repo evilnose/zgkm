@@ -296,7 +296,7 @@ void Position::load_fen(std::istream& fen_is) {
                 Square sq = utils::make_square(7 - row, col);
                 PieceType ptype = notation::parse_piece_char(piece_char);
                 if (ptype != NO_PIECE) {
-                    set_piece(sq, c, ptype);
+                    add_piece(sq, c, ptype);
                 } else {
                     assert(piece_char == '.');
                 }
@@ -306,12 +306,12 @@ void Position::load_fen(std::istream& fen_is) {
         // ignore row delimiter
         fen_is.ignore();
     }
-    char side_to_move;
+    char stom;  // side to move
     std::string castling_rights;
     std::string enpassant_square;
     int halfmove_clock;
     int fullmove_number;
-    fen_is >> side_to_move;
+    fen_is >> stom;
     fen_is >> castling_rights >> enpassant_square;
     if (fen_is >> halfmove_clock) {
         fen_is >> fullmove_number;
@@ -319,9 +319,9 @@ void Position::load_fen(std::istream& fen_is) {
         halfmove_clock = 0;
         fullmove_number = 1;
     }
-    assert(side_to_move == 'w' || side_to_move == 'b');
+    assert(stom == 'w' || stom == 'b');
 
-    set_side_to_move((Color)(side_to_move == 'b'));
+    side_to_move = (Color)(stom == 'b');
 
     CastlingRights c_rights = NO_CASTLING_RIGHTS;
     if (castling_rights != "-") {
@@ -360,4 +360,6 @@ void Position::load_fen(std::istream& fen_is) {
 
     set_halfmove_clock(halfmove_clock);
     set_fullmove_number(fullmove_number);
+
+    hash = compute_hash();
 }

@@ -10,35 +10,6 @@
 using std::vector;
 
 namespace {
-Bitboard absolute_pins(const Position& pos, Color pinned_color,
-                       Bitboard& pinner_out) {
-    Color opp_color = utils::opposite_color(pinned_color);
-    // Color opp_color = (Color) ((int) N_COLORS - 1 - (int) pinned_color);
-    Bitboard pinned = 0ULL;
-    Bitboard full_occ = pos.get_all_bitboard();
-    Bitboard own_occ = pos.get_color_bitboard(pinned_color);
-    Square king_sq = bboard::bitscan_fwd(pos.get_bitboard(pinned_color, KING));
-
-    Bitboard queen_occ = pos.get_bitboard(opp_color, QUEEN);
-    Bitboard pinner = bboard::rook_xray_attacks(king_sq, full_occ, own_occ) &
-                      (pos.get_bitboard(opp_color, ROOK) | queen_occ);
-    Bitboard pinner_acc = pinner;
-    while (pinner) {
-        Square sq = bboard::bitscan_fwd_remove(pinner);
-        pinned |= bboard::blocker(sq, king_sq, full_occ) & own_occ;
-    }
-    pinner = bboard::bishop_xray_attacks(king_sq, full_occ, own_occ) &
-             (pos.get_bitboard(opp_color, BISHOP) | queen_occ);
-    pinner_acc |= pinner;
-
-    while (pinner) {
-        Square sq = bboard::bitscan_fwd_remove(pinner);
-        pinned |= bboard::blocker(sq, king_sq, full_occ) & own_occ;
-    }
-
-    pinner_out = pinner_acc;
-    return pinned;
-}
 
 inline void add_moves(vector<Move>& moves, Square src, Bitboard tgts) {
     while (tgts != 0ULL) {
@@ -91,6 +62,36 @@ inline bool same_line(Square sq1, Square sq2) {
            (utils::sq_file(sq1) == utils::sq_file(sq2));
 }
 }  // namespace
+
+Bitboard absolute_pins(const Position& pos, Color pinned_color,
+                       Bitboard& pinner_out) {
+    Color opp_color = utils::opposite_color(pinned_color);
+    // Color opp_color = (Color) ((int) N_COLORS - 1 - (int) pinned_color);
+    Bitboard pinned = 0ULL;
+    Bitboard full_occ = pos.get_all_bitboard();
+    Bitboard own_occ = pos.get_color_bitboard(pinned_color);
+    Square king_sq = bboard::bitscan_fwd(pos.get_bitboard(pinned_color, KING));
+
+    Bitboard queen_occ = pos.get_bitboard(opp_color, QUEEN);
+    Bitboard pinner = bboard::rook_xray_attacks(king_sq, full_occ, own_occ) &
+                      (pos.get_bitboard(opp_color, ROOK) | queen_occ);
+    Bitboard pinner_acc = pinner;
+    while (pinner) {
+        Square sq = bboard::bitscan_fwd_remove(pinner);
+        pinned |= bboard::blocker(sq, king_sq, full_occ) & own_occ;
+    }
+    pinner = bboard::bishop_xray_attacks(king_sq, full_occ, own_occ) &
+             (pos.get_bitboard(opp_color, BISHOP) | queen_occ);
+    pinner_acc |= pinner;
+
+    while (pinner) {
+        Square sq = bboard::bitscan_fwd_remove(pinner);
+        pinned |= bboard::blocker(sq, king_sq, full_occ) & own_occ;
+    }
+
+    pinner_out = pinner_acc;
+    return pinned;
+}
 
 void test_absolute_pins(Position& position) {
     Bitboard pinner;

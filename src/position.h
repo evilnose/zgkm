@@ -100,15 +100,13 @@ class Position {
     */
     Bitboard get_attack_mask(Color c) const;
 
-    inline void set_side_to_move(Color c) { side_to_move = c; }
-
     inline Color get_side_to_move() const { return side_to_move; }
 
     inline Bitboard get_enpassant() const { return enpassant_mask; };
 
-    void set_piece(Square sq, Color c, PieceType piece);
+    void add_piece(Square sq, Color c, PieceType piece);
 
-    // void remove_piece(Square sq);
+    void remove_piece(Square sq, Color c, PieceType piece);
 
     inline void set_castling_rights(CastlingRights c_rights) {
         castling_rights = c_rights;
@@ -181,8 +179,14 @@ class Position {
 
     std::stack<PosState> history;
 
+	// incrementally updated zobrist hash
+    ZobristKey hash;
+
     // clear all pieces and state
     void clear();
+
+	// re-calculate the hash
+    ZobristKey compute_hash();
 };
 
 void test_get_attackers(Position& pos, Square sq, Color atk_color);

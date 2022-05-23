@@ -10,6 +10,7 @@ public:
     using Catch::TestEventListenerBase::TestEventListenerBase;
 
     void testRunStarting(Catch::TestRunInfo const&) override {
+		zobrist::initialize();
 		bboard::initialize();
     }
 };

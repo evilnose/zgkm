@@ -26,11 +26,17 @@ struct SearchLimit {
     int depth;
 };
 
-using ResultCallback = std::function<void(Move best, Score eval)>;
+struct SearchMetrics {
+    int depth;
+    int nodes;
+    int time;  // time elapsed for the search in millis
+};
+
+// using ResultCallback = std::function<void(Move best, Score eval)>;
 
 // search on pos until depth. e.g. depth_search(pos, 1) evaluates all positions after one move
 // should not be called after game is over
-SearchResult depth_search(const Position &pos, int depth);
+// SearchResult depth_search(const Position &pos, int depth);
 
 // basic parallel search using one thread
 // void timed_search(const Position &pos, int btime, int wtime, int binc, int cinc,

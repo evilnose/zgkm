@@ -5,6 +5,10 @@
 
 #include "position.h"
 
+
+Bitboard absolute_pins(const Position& pos, Color pinned_color,
+                       Bitboard& pinner_out);
+
 // generate legal moves and return through the output vector. Return whether the side to move is
 // being checked.
 bool gen_legal_moves(const Position& position, std::vector<Move>& out_moves);

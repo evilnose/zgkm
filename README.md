@@ -1,16 +1,45 @@
 # ZGKM Chess Engine
 
-## Notes
-* How do the main and worker threads interact? Probably, have the worker thread "push" updates..
-onto the main thread whenever results become available (e.g. finished searching one depth in..
-iterative deepening). For fixed-time searches, the main thread simply waits x amount of time..
-and then picks the best thread result and return. For time management, probably check after some..
-amount of time the values and quiescence from the threads, and if we deem it helpful we'll..
-continue searching and check again after a while; otherwise we'll return.
-* `cout` is *not* synchronized across threads. This is probably not a big deal, but if there is..
-time in the future, I should write a synchronized one that is lock-based.
+## Features Planned for the CSE 573 Final Project
+* Good evaluation function (TODO)
+* More metrics recorded: PV, nodes, nodes rate, etc and send to UCI
+* Time management: start off with a basic one from Cray Blitz: https://www.chessprogramming.org/Time_Management#Extra_Time.
+* Simple tournament tool for measuring extremely rough estimates of my engine's playing strength
+* Simple tool that has engine search on test positions and benchmark them (speed, nodes searched, correctness)
+* Better move ordering
+* Transposition tables
+* Quiet search
+* Parallel search
+
+## Possible Features
+* Better early termination? e.g. check every 1024 nodes searched: https://chess.stackexchange.com/questions/17510/how-do-chess-engines-manage-time-when-they-play-real-games
 
 
-## Major TODOs
-* Refactor: Currently MainThread and Thread duties are all jumbled up, since parallel search is..
-not yet implemented. Once we start on that, though, the two classes must be split clean.
+## Non-goals
+* Pondering
+* Statistically rigorous measure of playing strength
+* Longer time controls
+* Opening book and endgame tablebases
+
+## Goals Week of 5/22/2022
+* Implement better time management (DONE)
+* Slightly better eval (DONE)
+* Load test positions (SKIPPED)
+* Better eval? (WIP)
+* refactor hashtable to be a class rather than a file, since we might need more than one
+* Position hashing & transposition table (WIP)
+* how do I evict from the table? (WIP)
+* verify that zobrist seed is good (WIP)
+* clear table (? probably not) in ucinewgame (WIP)
+* Add metrics (TODO)
+* Implement PV search (TODO)
+* Implement PV and three-move-repetition, then examine this position again: (TODO)
+position fen 1r5r/p1P4p/6p1/6k1/2PN4/P4P1B/N2K3P/8 w - - 0 36 
+go depth 5
+
+## Goals Week of 5/29/2022
+* if we're doing well in terms of chess engine performance, then either parallel search or aspiration window
+* otherwise, fix shit.
+
+For some reason, instead of making the obvious pawn capture-promotion, some other weird move is played,
+by both evaluation functions. (Also you can just view the PGNs)

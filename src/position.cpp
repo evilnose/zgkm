@@ -1,7 +1,9 @@
 #include "position.h"
+
 #include "movegen.h"
 #include "utils.h"
 #include "logger.h"
+#include "hash.h"
 
 #include <cassert>
 #include <cctype>
@@ -33,7 +35,8 @@ Position::Position(const Position& other)
       color_bitboards{other.color_bitboards},
       enpassant_mask{other.enpassant_mask},
       halfmove_clock{other.halfmove_clock},
-      fullmove_number{other.fullmove_number} {}
+      fullmove_number{other.fullmove_number},
+      hash{other.hash} {}
 
 Position& Position::operator=(const Position& other) {
     side_to_move = other.side_to_move;
@@ -43,6 +46,7 @@ Position& Position::operator=(const Position& other) {
     enpassant_mask = other.enpassant_mask;
     halfmove_clock = other.halfmove_clock;
     fullmove_number = other.fullmove_number;
+    hash = other.hash;
     return *this;
 }
 
@@ -91,31 +95,15 @@ void Position::make_move(Move move) {
         BoardSide side = get_move_castle_side(move);
         // TODO maybe hardcoding in / constexpr'ing mask_square makes this
         // faster?
-        Bitboard king_target =
-            bboard::mask_square(utils::king_castle_target(color, side));
-        Bitboard rook_target =
-            bboard::mask_square(utils::rook_castle_target(color, side));
-        Bitboard king_source =
-            bboard::mask_square(utils::KING_INIT_SQUARES[color]);
-        Bitboard rook_source =
-            bboard::mask_square(utils::rook_castle_source(color, side));
 
         // remove rook
-        piece_bitboards[ROOK] &= ~rook_source;
-        piece_bitboards[ANY_PIECE] &= ~rook_source;
-        color_bitboards[color] &= ~rook_source;
+        remove_piece(utils::rook_castle_source(color, side), color, ROOK);
         // remove king
-        piece_bitboards[KING] &= ~king_source;
-        piece_bitboards[ANY_PIECE] &= ~king_source;
-        color_bitboards[color] &= ~king_source;
+        remove_piece(utils::KING_INIT_SQUARES[color], color, KING);
         // add rook
-        piece_bitboards[ROOK] |= rook_target;
-        piece_bitboards[ANY_PIECE] |= rook_target;
-        color_bitboards[color] |= rook_target;
+        add_piece(utils::rook_castle_target(color, side), color, ROOK);
         // add king
-        piece_bitboards[KING] |= king_target;
-        piece_bitboards[ANY_PIECE] |= king_target;
-        color_bitboards[color] |= king_target;
+        add_piece(utils::king_castle_target(color, side), color, KING);
 
         // remove castling rights
         castling_rights &= ~utils::to_castling_rights(color);
@@ -135,12 +123,9 @@ void Position::make_move(Move move) {
         if (get_all_bitboard() & tgt_mask) {
             is_capture = true;
             get_piece(tgt, tgt_color, tgt_piece);
+            remove_piece(tgt, tgt_color, tgt_piece);
+
             cur_state.captured_piece = tgt_piece;
-            // only remove if piece exists
-            piece_bitboards[tgt_piece] &= ~tgt_mask;
-            color_bitboards[tgt_color] &= ~tgt_mask;
-            // do not apply mask to ANY_PIECE because
-            // new piece replaces captured piece
 
             // remove castling rights for opponent if rook captured
             if (tgt_piece == ROOK && (tgt_mask & ROOK_FILES &
@@ -151,12 +136,10 @@ void Position::make_move(Move move) {
         }
 
         // remove src piece from its src location
-        // do this for all move types here
+        // do this for all move types here, except castling
         get_piece(src, src_color, src_piece);
+        remove_piece(src, src_color, src_piece);
         fullmove_number += (int)src_color;
-        piece_bitboards[src_piece] &= ~src_mask;
-        piece_bitboards[ANY_PIECE] &= ~src_mask;
-        color_bitboards[src_color] &= ~src_mask;
 
         // update src piece type if promotion
         if (type == PROMOTION) {
@@ -166,11 +149,8 @@ void Position::make_move(Move move) {
             Color rmv_color = utils::opposite_color(src_color);
             Square rmv = tgt;
             utils::move_square(rmv, utils::pawn_direction(rmv_color), 0);
-            Bitboard rmv_mask = bboard::mask_square(rmv);
             // remove EP captured pawn
-            piece_bitboards[PAWN] &= ~rmv_mask;
-            color_bitboards[rmv_color] &= ~rmv_mask;
-            piece_bitboards[ANY_PIECE] &= ~rmv_mask;
+            remove_piece(rmv, rmv_color, PAWN);
             // don't need the following line b/c enpassant implies pawn
             // cur_state.captured_piece = tgt_piece;
         } else if (src_piece == PAWN && abs((int)tgt - (int)src) == 16) {
@@ -180,9 +160,7 @@ void Position::make_move(Move move) {
         }
 
         // place src piece at its new location
-        piece_bitboards[src_piece] |= tgt_mask;
-        piece_bitboards[ANY_PIECE] |= tgt_mask;
-        color_bitboards[src_color] |= tgt_mask;
+        add_piece(tgt, src_color, src_piece);
 
         if (src_piece == KING) {
             castling_rights &= ~utils::to_castling_rights(src_color);
@@ -198,6 +176,9 @@ void Position::make_move(Move move) {
 
     history.push(cur_state);
     side_to_move = utils::opposite_color(side_to_move);
+    hash ^= zobrist::get_black_to_move_key();
+
+    assert(compute_hash() == hash);
 }
 
 void Position::unmake_move(Move move) {
@@ -215,36 +196,18 @@ void Position::unmake_move(Move move) {
         BoardSide side = get_move_castle_side(move);
         // TODO maybe hardcoding in / constexpr'ing mask_square makes this
         // faster?
-        Bitboard king_target =
-            bboard::mask_square(utils::king_castle_target(color, side));
-        Bitboard rook_target =
-            bboard::mask_square(utils::rook_castle_target(color, side));
-        Bitboard king_source =
-            bboard::mask_square(utils::KING_INIT_SQUARES[color]);
-        Bitboard rook_source =
-            bboard::mask_square(utils::rook_castle_source(color, side));
 
         // remove rook
-        piece_bitboards[ROOK] &= ~rook_target;
-        piece_bitboards[ANY_PIECE] &= ~rook_target;
-        color_bitboards[color] &= ~rook_target;
+        remove_piece(utils::rook_castle_target(color, side), color, ROOK);
         // remove king
-        piece_bitboards[KING] &= ~king_target;
-        piece_bitboards[ANY_PIECE] &= ~king_target;
-        color_bitboards[color] &= ~king_target;
+        remove_piece(utils::king_castle_target(color, side), color, KING);
         // add rook
-        piece_bitboards[ROOK] |= rook_source;
-        piece_bitboards[ANY_PIECE] |= rook_source;
-        color_bitboards[color] |= rook_source;
+        add_piece(utils::rook_castle_source(color, side), color, ROOK);
         // add king
-        piece_bitboards[KING] |= king_source;
-        piece_bitboards[ANY_PIECE] |= king_source;
-        color_bitboards[color] |= king_source;
+        add_piece(utils::KING_INIT_SQUARES[color], color, KING);
     } else {
         Square src = get_move_source(move);
         Square tgt = get_move_target(move);
-        Bitboard src_mask = bboard::mask_square(src);
-        Bitboard tgt_mask = bboard::mask_square(tgt);
         Color src_color;
         // Color tgt_color;
         PieceType src_piece;
@@ -254,20 +217,15 @@ void Position::unmake_move(Move move) {
         // do this for all move types here
         get_piece(tgt, src_color, src_piece);
         fullmove_number -= (int)src_color;
-        piece_bitboards[src_piece] &= ~tgt_mask;
-        piece_bitboards[ANY_PIECE] &= ~tgt_mask;
-        color_bitboards[src_color] &= ~tgt_mask;
+        remove_piece(tgt, src_color, src_piece);
 
         if (type == ENPASSANT) {
             // if en-passant, update tgt_square
             Color rmv_color = utils::opposite_color(src_color);
             Square rmv = tgt;
             utils::move_square(rmv, utils::pawn_direction(rmv_color), 0);
-            Bitboard rmv_mask = bboard::mask_square(rmv);
             // restore captured pawn
-            color_bitboards[utils::opposite_color(src_color)] |= rmv_mask;
-            piece_bitboards[PAWN] |= rmv_mask;
-            piece_bitboards[ANY_PIECE] |= rmv_mask;
+            add_piece(rmv, rmv_color, PAWN);
         } else {
             if (type == PROMOTION) {
                 // restore src piece type if promotion
@@ -276,19 +234,18 @@ void Position::unmake_move(Move move) {
 
             // restore captured piece
             if (last_state.captured_piece != NO_PIECE) {
-                color_bitboards[utils::opposite_color(src_color)] |= tgt_mask;
-                piece_bitboards[last_state.captured_piece] |= tgt_mask;
-                piece_bitboards[ANY_PIECE] |= tgt_mask;
+                add_piece(tgt, utils::opposite_color(src_color), last_state.captured_piece);
             }
         }
 
         // place src piece back
-        piece_bitboards[src_piece] |= src_mask;
-        piece_bitboards[ANY_PIECE] |= src_mask;
-        color_bitboards[src_color] |= src_mask;
+        add_piece(src, src_color, src_piece);
     }
 
     side_to_move = utils::opposite_color(side_to_move);
+    hash ^= zobrist::get_black_to_move_key();
+
+    assert(compute_hash() == hash);
 }
 
 Bitboard Position::get_attackers(Square target_sq, Color atk_color) const {
@@ -401,11 +358,22 @@ Bitboard Position::get_attack_mask(Color col) const {
     return mask;
 }
 
-void Position::set_piece(Square sq, Color c, PieceType piece) {
+void Position::add_piece(Square sq, Color c, PieceType piece) {
     Bitboard mask = bboard::mask_square(sq);
     piece_bitboards[(int)piece] |= mask;
     piece_bitboards[ANY_PIECE] |= mask;
     color_bitboards[(int)c] |= mask;
+    
+    hash ^= zobrist::get_key(sq, piece, c);
+}
+
+void Position::remove_piece(Square sq, Color c, PieceType piece) {
+    Bitboard mask = ~bboard::mask_square(sq);
+    piece_bitboards[(int)piece] &= mask;
+    piece_bitboards[ANY_PIECE] &= mask;
+    color_bitboards[(int)c] &= mask;
+
+    hash ^= zobrist::get_key(sq, piece, c);
 }
 
 bool Position::is_checking() const {
@@ -463,14 +431,28 @@ void Position::clear() {
     halfmove_clock = 0;
     fullmove_number = 1;
     history = {};
+    hash = 0;
 }
 
-// void Position::remove_piece(Square sq, Color c, PieceType piece) {
-//     Bitboard mask = ~bboard::mask_square(sq);
-//     piece_bitboards[(int)piece] &= mask;
-//     piece_bitboards[ANY_PIECE] &= mask;
-//     color_bitboards[(int)c] &= mask;
-// }
+ZobristKey Position::compute_hash() {
+    // from https://en.wikipedia.org/wiki/Zobrist_hashing
+    ZobristKey hs{};
+
+    if (side_to_move == BLACK) {
+        hs ^= zobrist::get_black_to_move_key();
+    }
+
+    for (Color c : {WHITE, BLACK}) {
+        for (PieceType pt = PAWN; pt != ANY_PIECE; pt = (PieceType)(pt + 1)) {
+            Bitboard bb = get_bitboard(c, pt);
+            while (bb) {
+                Square sq = bboard::bitscan_fwd_remove(bb);
+                hs ^= zobrist::get_key(sq, pt, c);
+            }
+        }
+    }
+    return hs;
+}
 
 #include <iostream>
 void test_get_attackers(Position& pos, Square sq, Color atk_color) {

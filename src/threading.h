@@ -31,6 +31,8 @@ class Thread {
 
     // set the root position
     void set_position(const Position& pos);
+    // set the root position
+    const Position& get_position() const;
     // set the limit of search
     void set_search_limit(SearchLimit limit);
     // reset temporary states such as SearchState
@@ -52,6 +54,8 @@ class Thread {
     Score depth_search(Score alpha, Score beta, int depth);
 
     bool check_return();
+
+    bool check_tc_return();
 
     std::thread inner_thread;
     std::condition_variable start_cv;
@@ -82,6 +86,7 @@ void set_num_threads(int n_threads);
 void start_search(SearchLimit limit);
 void stop_search();
 void set_position(const Position& pos);
+const Position& get_position();
 void cleanup();
 
 }  // namespace thread
