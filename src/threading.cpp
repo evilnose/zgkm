@@ -172,7 +172,7 @@ inline bool Thread::check_return() {
     // TODO add fixed time control, etc.
     // multiply by 0.5 as a heuristic to estimate how much time the next iteration will take
     bool stop = time_alloc != 0 && timer.elapsed_millis() > time_alloc;
-    stop |= timer.elapsed_millis() > limit.fixed_time;
+    stop |= limit.fixed_time != 0 && timer.elapsed_millis() > limit.fixed_time;
     if (stop) {
         assert(state.best_move != NULL_MOVE);
         // if (am_main()) {
@@ -188,7 +188,9 @@ inline bool Thread::check_return() {
 inline bool Thread::check_tc_return() {
     // TODO add fixed time control, etc.
     // multiply by 0.5 as a heuristic to estimate how much time the next iteration will take
-    if (time_alloc != 0 && timer.elapsed_millis() > 0.6 * time_alloc) {
+    bool stop = time_alloc != 0 && timer.elapsed_millis() > 0.6 * time_alloc;
+    stop |= limit.fixed_time != 0 && timer.elapsed_millis() > 0.6 * limit.fixed_time;
+    if (stop) {
         assert(state.best_move != NULL_MOVE);
         // if (am_main()) {
         //     uci::info(state);
