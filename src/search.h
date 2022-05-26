@@ -8,8 +8,8 @@
 
 // TODO add PV
 struct SearchResult {
-    Move best_move;
     Score eval;
+    Move best_move;
 };
 
 struct TimeControlParams {

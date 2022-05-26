@@ -139,8 +139,8 @@ SearchResult depth_search(const Position &orig_pos, int depth) {
     assert(best_move != NULL_MOVE);
 
     return SearchResult{
-        best_move,
         alpha * color_multiplier(pos.get_side_to_move()),
+        best_move,
     };
 }
 

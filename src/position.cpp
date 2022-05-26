@@ -178,10 +178,27 @@ void Position::make_move(Move move) {
     side_to_move = utils::opposite_color(side_to_move);
     hash ^= zobrist::get_black_to_move_key();
 
+	// increment hash count
+    auto it = pos_counts.find(hash);
+    if (it == pos_counts.end()) {
+        // std::cout << "first " << hash << std::endl;
+        pos_counts[hash] = 1;
+    } else {
+        // std::cout << "second " << hash << std::endl;
+        it->second++;
+    }
+
     assert(compute_hash() == hash);
 }
 
 void Position::unmake_move(Move move) {
+    auto it = pos_counts.find(hash);
+    assert(it != pos_counts.end());
+    it->second--;
+    if (it->second == 0) {
+        pos_counts.erase(it);
+    }
+
     assert(history.size() != 0);
     MoveType type = get_move_type(move);
     PosState last_state = history.top();

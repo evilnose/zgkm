@@ -13,14 +13,18 @@
 #include "position.h"
 #include "search.h"
 #include "utils.h"
+#include "hash.h"
 
 namespace thread {
 
 struct SearchState {
-   int nodes;
+   unsigned long nodes;
    Move best_move;
    Score best_eval;
+   std::vector<Move> pv;
    int cur_depth;
+   int tt_hits;  // transposition table hits
+   int tt_collisions;
 };
 
 // One thread represents one search task with one root node.

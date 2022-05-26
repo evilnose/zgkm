@@ -362,4 +362,6 @@ void Position::load_fen(std::istream& fen_is) {
     set_fullmove_number(fullmove_number);
 
     hash = compute_hash();
+	pos_counts.clear();
+    pos_counts[hash] = 1;
 }

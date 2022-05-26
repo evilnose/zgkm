@@ -164,6 +164,9 @@ void uci::loop()
                 } else if (constraint == "depth") {
                     slimit.depth = std::stoi(value);
                     assert(slimit.depth > 0);
+                } else if (constraint == "movetime") {
+                    slimit.fixed_time = std::stoi(value);
+                    assert(slimit.fixed_time > 0);
                 } else if (constraint == "infinite") {
                     // Don't set any constraints
                     // LOG(logWARNING) << "infinite constraint not actually implemented.";

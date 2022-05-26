@@ -36,6 +36,59 @@ ZobristKey zobrist::get_black_to_move_key() {
 	return black_to_move;
 }
 
-void hashtable::alloc(unsigned n) {
+ht::Table::Table(size_t sz) : sz(sz), entries(sz, ht::Entry{}) {
+}
 
+ht::Entry ht::Table::get(ZobristKey key) const {
+	size_t index = key % sz;
+	ht::Entry entry = entries[index];
+	if (entry.key == key) {
+		return entry;
+	} else {
+		// keys not equal, so return empty/null entry
+		return ht::Entry{};
+	}
+}
+
+bool ht::Table::contains(ZobristKey key) const {
+	size_t index = key % sz;
+	ht::Entry entry = entries[index];
+	return entry.key == key;
+}
+
+bool ht::Table::has_collision(ZobristKey key) const {
+	size_t index = key % sz;
+	ht::Entry entry = entries[index];
+	return entry.key != key && entry.key != 0;
+}
+
+// TODO for now the replacement strategy favors preserving PV
+void ht::Table::put(ht::Entry entry) {
+	size_t index = entry.key % sz;
+
+	// assuming that the only case a key would be 0 is when the entry's uninitialized
+	if (entries[index].key != 0) {
+		// there is a collision!
+		// for now we replace only if not pv-node
+		if (entries[index].node_type == 1 && entry.node_type != 1) {
+			return;
+		}
+
+		// depth-preferred
+		if (entry.depth > entries[index].depth) {
+			entries[index] = entry;
+		}
+	} else {
+		entries[index] = entry;
+	}
+}
+
+static ht::Table g_table(4096);  // small default value
+
+ht::Table& ht::global_table() {
+	return g_table;
+}
+
+void ht::set_global_table(size_t sz) {
+	g_table = ht::Table(sz);
 }

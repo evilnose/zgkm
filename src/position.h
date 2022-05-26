@@ -3,6 +3,8 @@
 #include <vector>
 #include <stack>
 #include <array>
+#include <iostream>
+#include <unordered_map>
 
 #include "bitboard.h"
 
@@ -159,8 +161,20 @@ class Position {
         return halfmove_clock >= 100;
     }
 
+    inline bool is_drawn_by_threefold() const {
+        for (auto it = pos_counts.begin(); it != pos_counts.end(); it++) {
+            if (it->second >= 3) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     // basic assertions about the integrity of data fields
     bool position_good() const;
+
+    inline ZobristKey get_hash() const { return hash; }
 
    private:
     Color side_to_move;
@@ -178,6 +192,8 @@ class Position {
     int fullmove_number;
 
     std::stack<PosState> history;
+
+    std::unordered_map<ZobristKey, unsigned> pos_counts;
 
 	// incrementally updated zobrist hash
     ZobristKey hash;

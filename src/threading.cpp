@@ -7,6 +7,26 @@
 #include <cassert>
 #include <algorithm>
 
+std::vector<Move> reconstruct_pv(const Position& root_pos, const ht::Table& table) {
+    Position pos = root_pos;
+    std::vector<Move> pv;
+    while (true) {
+        ZobristKey key = pos.get_hash();
+        if (!table.contains(key)) {
+            break;
+        }
+
+        ht::Entry entry = table.get(key);
+        if (entry.bestmove == NULL_MOVE) {
+            break;
+        }
+        pv.push_back(entry.bestmove);
+        pos.make_move(entry.bestmove);
+    }
+
+    return pv;
+}
+
 namespace uci {
 void pv() {
     std::cerr << "uci::pv() not implemented.";
@@ -17,8 +37,19 @@ void bestmove(Move move) {
     std::cout << "bestmove " << notation::dump_uci_move(move) << std::endl;
 }
 
-void info(Score score_cp) {
-    std::cout << "info score cp " << score_cp << std::endl;
+void info(const thread::SearchState& state) {
+    std::cout << "info score cp " << state.best_eval << " nodes " << state.nodes \
+        << " tt_hits " << state.tt_hits \
+        << " tt_collisions " << state.tt_collisions;
+
+    if (state.pv.size() != 0){
+        std::cout << " pv";
+        for (Move mv : state.pv) {
+            std::cout << " " << notation::dump_uci_move(mv);
+        }
+    }
+
+    std::cout << std::endl;
 }
 
 }  // namespace uci
@@ -140,12 +171,14 @@ void Thread::thread_func() {
 inline bool Thread::check_return() {
     // TODO add fixed time control, etc.
     // multiply by 0.5 as a heuristic to estimate how much time the next iteration will take
-    if (time_alloc != 0 && timer.elapsed_millis() > time_alloc) {
+    bool stop = time_alloc != 0 && timer.elapsed_millis() > time_alloc;
+    stop |= timer.elapsed_millis() > limit.fixed_time;
+    if (stop) {
         assert(state.best_move != NULL_MOVE);
-        if (am_main()) {
-            uci::info(state.best_eval);
-            uci::bestmove(state.best_move);
-        }
+        // if (am_main()) {
+        //     uci::info(state);
+        //     uci::bestmove(state.best_move);
+        // }
         return true;
     }
     return false;
@@ -157,10 +190,10 @@ inline bool Thread::check_tc_return() {
     // multiply by 0.5 as a heuristic to estimate how much time the next iteration will take
     if (time_alloc != 0 && timer.elapsed_millis() > 0.6 * time_alloc) {
         assert(state.best_move != NULL_MOVE);
-        if (am_main()) {
-            uci::info(state.best_eval);
-            uci::bestmove(state.best_move);
-        }
+        // if (am_main()) {
+        //     uci::info(state);
+        //     uci::bestmove(state.best_move);
+        // }
         return true;
     }
     return false;
@@ -218,12 +251,19 @@ void Thread::search() {
             }
 
             root_pos.make_move(move);
+            state.nodes++;
             state.cur_depth = 0;
             state.cur_depth++;
-            LOG(logDEBUG) << depth << ": starting depth search";
+
+            if (ht::global_table().contains(root_pos.get_hash())) {
+                state.tt_hits++;
+            } else if (ht::global_table().has_collision(root_pos.get_hash())) {
+                state.tt_collisions++;
+            }
+
             Score val = -depth_search(SCORE_NEG_INFTY, -alpha, depth);
+
             state.cur_depth--;
-            LOG(logDEBUG) << depth << ": finishing depth search";
             root_pos.unmake_move(move);
 
             if (val > alpha) {
@@ -232,17 +272,28 @@ void Thread::search() {
                 best_move_idx = i;
             }
 
-            if (check_return()) return;
+            if (check_return()) break;
         }
+
+        ht::global_table().put(ht::Entry{
+            root_pos.get_hash(),  // key
+            (unsigned) depth,  // depth
+            alpha,  // score
+            best_move,  // best_move
+            1,  // node type
+        });
 
         // TODO later, update within the moves loop. But need to implement pv first.
         state.best_eval = alpha;
         state.best_move = best_move;
 
-        if (check_tc_return()) return;
+        if (check_tc_return()) break;
     }
     LOG(logDEBUG) << "Finished search";
-    uci::info(state.best_eval);
+    // reconstruct PV
+    auto pv = reconstruct_pv(root_pos, ht::global_table());
+    state.pv = pv;
+    uci::info(state);
     uci::bestmove(state.best_move);
         // // reinsert best move as the first move in the vector, so that it is explored first in the
         // // next iteration
@@ -259,8 +310,11 @@ Score Thread::depth_search(Score alpha, Score beta, int depth) {
         return SCORE_DRAW;
     }
 
-    // TODO check threefold repetition
+    if (root_pos.is_drawn_by_threefold()) {
+        return SCORE_DRAW;
+    }
 
+    short node_type = 3;
     if (moves.size() == 0) {
         if (checking) {
             // I lose
@@ -274,24 +328,40 @@ Score Thread::depth_search(Score alpha, Score beta, int depth) {
             return evaluate(root_pos);
         }
 
+        Move best_move = NULL_MOVE;
         for (Move move : moves) {
             root_pos.make_move(move);
             assert(root_pos.position_good());
+            state.nodes++;
             state.cur_depth++;
             Score s = -depth_search(-beta, -alpha, depth);
             state.cur_depth--;
             root_pos.unmake_move(move);
             if (s >= beta) {
                 // opponent's upper bound broken. So curr pos will not be
-                // allowed
-                return beta;
+                // allowed (fail-high)
+                alpha = beta;
+                node_type = 2;
+                best_move = move;
+                break;
             }
             if (s > alpha) {
                 // update my guarantee
                 alpha = s;
+                node_type = 1;
+                best_move = move;
             }
         }
+
+        ht::global_table().put(ht::Entry{
+            root_pos.get_hash(),  // key
+            (unsigned int) (depth - state.cur_depth),  // depth
+            alpha,  // score
+            best_move,  // best_move
+            node_type,  // node type
+        });
     }
+
     return alpha;
 }
 
