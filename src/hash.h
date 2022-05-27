@@ -18,7 +18,7 @@ struct Entry {
 	unsigned depth;  // 4B
 	Score score;  // 4B; integrated bound and value score
 	Move bestmove;  // 2B; this is NULL_MOVE if node is terminal or node_type == 3, i.e. fail-low
-	short node_type;  // 2B; Knuth's type 1, 2, or 3 node
+	short node_type;  // 2B; Knuth's type 1, 2, or 3 node (type 1 = exact, type 2 = fail-high, type 3 = fail low)
 	// TODO age?
 };
 

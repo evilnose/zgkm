@@ -20,6 +20,11 @@ std::vector<Move> reconstruct_pv(const Position& root_pos, const ht::Table& tabl
         if (entry.bestmove == NULL_MOVE) {
             break;
         }
+        std::vector<Move> legal_moves;
+        gen_legal_moves(root_pos, legal_moves);
+        if (find(legal_moves.begin(), legal_moves.end(), entry.bestmove) == legal_moves.end()) {
+            break;
+        }
         pv.push_back(entry.bestmove);
         pos.make_move(entry.bestmove);
     }
@@ -37,13 +42,15 @@ void bestmove(Move move) {
     std::cout << "bestmove " << notation::dump_uci_move(move) << std::endl;
 }
 
-void info(const thread::SearchState& state) {
+void info(const thread::SearchState& state, int depth) {
     #if USE_PESTO
     static float divisor = 100.f;
     #else
     static float divisor = 1.f;
     #endif
-    std::cout << "info score cp " << ((float) state.best_eval) / divisor << " nodes " << state.nodes \
+    std::cout << "info score cp " << ((float) state.best_eval) / divisor \
+    	<< " depth " << depth \
+        << " nodes " << state.nodes \
         << " tt_hits " << state.tt_hits \
         << " tt_collisions " << state.tt_collisions;
 
@@ -62,7 +69,7 @@ void info(const thread::SearchState& state) {
 namespace thread {
 
 // global pool variables
-std::atomic<bool> stop_flag;
+std::atomic<bool> stop_flag(false);
 int MAX_SEARCH_DEPTH = 80;
 std::vector<Thread *> threads;
 
@@ -102,6 +109,8 @@ void start_search(SearchLimit limit) {
         std::cerr << "Already searching, so this command is ignored." << std::endl;
         return;
     }
+
+    stop_flag = false;
 
     for (auto pth : threads) {
         pth->reset();
@@ -232,7 +241,6 @@ void Thread::search() {
     state.best_move = moves[0];
     LOG(logDEBUG) << "Starting search";
 
-    Move best_move = moves[0];
     int best_move_idx = 0;
     // set to 4 if there is no depth limit; otherwise set to min(4, target_depth) to avoid having
     // a loop like (4..3), e.g. if target depth is 3
@@ -252,9 +260,9 @@ void Thread::search() {
         for (unsigned i = 0; i < moves.size(); i++) {
             Move move = moves[i];
 
-            if (stop_flag.load()) {
+            if (stop_flag) {
                 // early stopping
-                return;
+                break;
             }
 
             root_pos.make_move(move);
@@ -263,45 +271,51 @@ void Thread::search() {
             state.cur_depth++;
 
             if (ht::global_table().contains(root_pos.get_hash())) {
-                state.tt_hits++;
+                // state.tt_hits++;
             } else if (ht::global_table().has_collision(root_pos.get_hash())) {
                 state.tt_collisions++;
             }
 
             Score val = -depth_search(SCORE_NEG_INFTY, -alpha, depth);
+            // LOG(logERROR) << "finished depth search";
 
             state.cur_depth--;
             root_pos.unmake_move(move);
 
-            if (val > alpha) {
-                alpha = val;
-                best_move = move;
-                best_move_idx = i;
+            if (stop_flag) {
+                // early stop; can't use the value for this move
+                break;
             }
 
-            if (check_return()) break;
+            if (val > alpha) {
+                alpha = val;
+                best_move_idx = i;
+
+                state.best_eval = alpha * color_multiplier(root_pos.get_side_to_move());
+                state.best_move = move;
+            }
         }
 
         ht::global_table().put(ht::Entry{
             root_pos.get_hash(),  // key
             (unsigned) depth,  // depth
             alpha,  // score
-            best_move,  // best_move
+            state.best_move,  // best_move
             1,  // node type
         });
 
-        // TODO later, update within the moves loop. But need to implement pv first.
-        state.best_eval = alpha * color_multiplier(root_pos.get_side_to_move());
-        state.best_move = best_move;
+        auto pv = reconstruct_pv(root_pos, ht::global_table());
+        state.pv = pv;
+        uci::info(state, depth);
 
+		if (stop_flag) break;
         if (check_tc_return()) break;
     }
     LOG(logDEBUG) << "Finished search";
     // reconstruct PV
-    auto pv = reconstruct_pv(root_pos, ht::global_table());
-    state.pv = pv;
-    uci::info(state);
+    // uci::info(state);
     uci::bestmove(state.best_move);
+    // std::cout << notation::to_aligned_fen(root_pos) << std::endl;
         // // reinsert best move as the first move in the vector, so that it is explored first in the
         // // next iteration
         // moves.erase(find(moves.begin(), moves.end(), best));
@@ -310,6 +324,13 @@ void Thread::search() {
 }
 
 Score Thread::depth_search(Score alpha, Score beta, int depth) {
+    if (state.nodes % 2047 == 0) {
+        if (check_return()) {
+            stop_flag = true;
+            return alpha;
+        }
+    }
+
     std::vector<Move> moves;
     bool checking = gen_legal_moves(root_pos, moves);
 
@@ -321,8 +342,35 @@ Score Thread::depth_search(Score alpha, Score beta, int depth) {
         return SCORE_DRAW;
     }
 
-    if (ht::global_table().contains(root_pos.get_hash())) {
-        state.tt_hits++;
+    if (false && ht::global_table().contains(root_pos.get_hash())) {
+        ht::Entry entry = ht::global_table().get(root_pos.get_hash());
+        if (entry.depth >= depth - state.cur_depth) {
+            state.tt_hits++;
+            if (entry.node_type == 1) {
+                if (entry.score < 0) {
+                    for (Move move : moves) {
+                        root_pos.make_move(move);
+                        if (root_pos.is_drawn_by_threefold()) {
+                            root_pos.unmake_move(move);
+                            return 0;
+                        }
+                        root_pos.unmake_move(move);
+                    }
+                }
+
+                // exact
+                return entry.score;
+            } else if (entry.node_type == 2) {
+                // lower bound
+                alpha = std::max(alpha, entry.score);
+                if (alpha >= beta) {
+                    return alpha;
+                }
+            } else {
+                // upper bound
+                beta = std::min(beta, entry.score);
+            }
+        }
     } else if (ht::global_table().has_collision(root_pos.get_hash())) {
         state.tt_collisions++;
     }
@@ -331,7 +379,7 @@ Score Thread::depth_search(Score alpha, Score beta, int depth) {
     if (moves.size() == 0) {
         if (checking) {
             // I lose
-            return SCORE_NEG_INFTY;
+            return SCORE_NEG_INFTY + root_pos.get_halfmove_clock();
         } else {
             return SCORE_DRAW;
         }
@@ -350,6 +398,9 @@ Score Thread::depth_search(Score alpha, Score beta, int depth) {
             Score s = -depth_search(-beta, -alpha, depth);
             state.cur_depth--;
             root_pos.unmake_move(move);
+            if (stop_flag) {
+                return alpha;  // TODO break?
+            }
             if (s >= beta) {
                 // opponent's upper bound broken. So curr pos will not be
                 // allowed (fail-high)

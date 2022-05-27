@@ -33,13 +33,12 @@
 * how do I evict from the table? (DONE)
 * verify that zobrist seed is good (WIP)
 * Add metrics (WIP)
-* PeSTO's evaluation function (TODO): https://www.chessprogramming.org/PeSTO%27s_Evaluation_Function
-* Implement depth + always replace scheme as comparison
-* Set up tournaments (TODO)
+* PeSTO's evaluation function (DONE): https://www.chessprogramming.org/PeSTO%27s_Evaluation_Function
+* Get table working (TODO)
 * Implement PV search (TODO)
-* Implement PV and three-move-repetition, then examine this position again: (TODO)
-position fen 1r5r/p1P4p/6p1/6k1/2PN4/P4P1B/N2K3P/8 w - - 0 36 
-go depth 5
+* Implement depth + always replace scheme as comparison (MAYBE)
+* Run tournaments; get some metrics (TODO)
+* Done.
 
 ## Goals Week of 5/29/2022
 * if we're doing well in terms of chess engine performance, then either parallel search or aspiration window

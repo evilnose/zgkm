@@ -172,6 +172,16 @@ class Position {
         return false;
     }
 
+    inline bool is_twofold_repeated() const {
+        for (auto it = pos_counts.begin(); it != pos_counts.end(); it++) {
+            if (it->second >= 2) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     // basic assertions about the integrity of data fields
     bool position_good() const;
 

@@ -214,23 +214,23 @@ Score mobility(Color c, const Position& pos) {
         mob += utils::popcount(attacks) + 0.5f * utils::popcount(capture_attacks) + 0.5f * utils::popcount(attacks_in_their_side);
     }
 
-    Bitboard free_rooks = pos.get_bitboard(c, ROOK) & ~pinned;
-    while (free_rooks != 0ULL) {
-        Square sq = bboard::bitscan_fwd_remove(free_rooks);
-        Bitboard attacks = bboard::rook_attacks(sq, def_occ);
-        Bitboard attacks_in_their_side = attacks & def_half;
+    // Bitboard free_rooks = pos.get_bitboard(c, ROOK) & ~pinned;
+    // while (free_rooks != 0ULL) {
+    //     Square sq = bboard::bitscan_fwd_remove(free_rooks);
+    //     Bitboard attacks = bboard::rook_attacks(sq, def_occ);
+    //     Bitboard attacks_in_their_side = attacks & def_half;
 
-        mob += 0.25f * utils::popcount(attacks) + 0.5f * utils::popcount(attacks_in_their_side);
-    }
+    //     mob += 0.1 * utils::popcount(attacks) + 0.25f * utils::popcount(attacks_in_their_side);
+    // }
 
-    Bitboard free_queens = pos.get_bitboard(c, ROOK) & ~pinned;
-    while (free_rooks != 0ULL) {
-        Square sq = bboard::bitscan_fwd_remove(free_rooks);
-        Bitboard attacks = bboard::queen_attacks(sq, def_occ);
-        // Bitboard attacks_in_their_side = attacks & def_half;
+    // Bitboard free_queens = pos.get_bitboard(c, ROOK) & ~pinned;
+    // while (free_rooks != 0ULL) {
+    //     Square sq = bboard::bitscan_fwd_remove(free_rooks);
+    //     Bitboard attacks = bboard::queen_attacks(sq, def_occ);
+    //     // Bitboard attacks_in_their_side = attacks & def_half;
 
-        mob += 0.25f * utils::popcount(attacks);
-    }
+    //     mob += 0.1f * utils::popcount(attacks);
+    // }
 
     return mob;
 }

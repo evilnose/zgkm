@@ -2,6 +2,7 @@
 
 #include <array>
 #include "utils.h"
+#include "logger.h"
 
 /// zobrist stuff
 constexpr unsigned N_ZOBRIST_PIECES = 12;
@@ -14,7 +15,7 @@ ZobristKey black_to_move;
 
 
 void zobrist::initialize() {
-	utils::PRNG prng(38520315250);  // NOTE: this seed was arbitrarily chosen
+	utils::PRNG prng(123);  // NOTE: this seed was arbitrarily chosen
 	for (unsigned i = 0; i < 64; i++) {
 		for (unsigned j = 0; j < N_ZOBRIST_PIECES; j++) {
 			table[i][j] = prng.rand64();
@@ -59,7 +60,10 @@ bool ht::Table::contains(ZobristKey key) const {
 bool ht::Table::has_collision(ZobristKey key) const {
 	size_t index = key % sz;
 	ht::Entry entry = entries[index];
-	return entry.key != key && entry.key != 0;
+	bool ret = entry.key != key && entry.key != 0;
+	// if (ret)
+	// 	LOG(logERROR) << entry.key << " != " << key;
+	return ret;
 }
 
 // TODO for now the replacement strategy favors preserving PV
@@ -83,7 +87,7 @@ void ht::Table::put(ht::Entry entry) {
 	}
 }
 
-static ht::Table g_table(8192 * 4);  // default value
+static ht::Table g_table(8192 * 8192);  // default value
 
 ht::Table& ht::global_table() {
 	return g_table;
