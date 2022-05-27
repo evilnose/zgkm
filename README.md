@@ -27,11 +27,15 @@
 * Load test positions (SKIPPED)
 * Better eval? (WIP)
 * refactor hashtable to be a class rather than a file, since we might need more than one
-* Position hashing & transposition table (WIP)
-* how do I evict from the table? (WIP)
+* Position hashing & transposition table (DONE)
+* extract PV (DONE)
+* load test positions (SKIPPED)
+* how do I evict from the table? (DONE)
 * verify that zobrist seed is good (WIP)
-* clear table (? probably not) in ucinewgame (WIP)
-* Add metrics (TODO)
+* Add metrics (WIP)
+* PeSTO's evaluation function (TODO): https://www.chessprogramming.org/PeSTO%27s_Evaluation_Function
+* Implement depth + always replace scheme as comparison
+* Set up tournaments (TODO)
 * Implement PV search (TODO)
 * Implement PV and three-move-repetition, then examine this position again: (TODO)
 position fen 1r5r/p1P4p/6p1/6k1/2PN4/P4P1B/N2K3P/8 w - - 0 36 

@@ -38,7 +38,12 @@ void bestmove(Move move) {
 }
 
 void info(const thread::SearchState& state) {
-    std::cout << "info score cp " << state.best_eval << " nodes " << state.nodes \
+    #if USE_PESTO
+    static float divisor = 100.f;
+    #else
+    static float divisor = 1.f;
+    #endif
+    std::cout << "info score cp " << ((float) state.best_eval) / divisor << " nodes " << state.nodes \
         << " tt_hits " << state.tt_hits \
         << " tt_collisions " << state.tt_collisions;
 
@@ -286,7 +291,7 @@ void Thread::search() {
         });
 
         // TODO later, update within the moves loop. But need to implement pv first.
-        state.best_eval = alpha;
+        state.best_eval = alpha * color_multiplier(root_pos.get_side_to_move());
         state.best_move = best_move;
 
         if (check_tc_return()) break;
@@ -314,6 +319,12 @@ Score Thread::depth_search(Score alpha, Score beta, int depth) {
 
     if (root_pos.is_drawn_by_threefold()) {
         return SCORE_DRAW;
+    }
+
+    if (ht::global_table().contains(root_pos.get_hash())) {
+        state.tt_hits++;
+    } else if (ht::global_table().has_collision(root_pos.get_hash())) {
+        state.tt_collisions++;
     }
 
     short node_type = 3;

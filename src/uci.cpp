@@ -6,6 +6,7 @@
 #include "logger.h"
 #include "notation.h"
 #include "hash.h"
+#include "evaluate.h"
 
 #include <iostream>
 #include <iterator>
@@ -83,6 +84,7 @@ void uci::initialize(int argc, char *argv[])
 {
     bboard::initialize();
     zobrist::initialize();
+    init_eval_tables();
     thread::set_num_threads(1);
 }
 
@@ -91,7 +93,11 @@ void uci::loop()
     string line;
     istringstream liness;
     string command;
+    #if USE_PESTO
+    string ENGINE_NAME = "ZGKM-PESTO";
+    #else
     string ENGINE_NAME = "ZGKM";
+    #endif
     #ifdef MAT_ONLY
         ENGINE_NAME += "-MAT-ONLY";
     #endif

@@ -12,6 +12,7 @@ public:
     void testRunStarting(Catch::TestRunInfo const&) override {
 		zobrist::initialize();
 		bboard::initialize();
+		init_eval_tables();
     }
 };
 

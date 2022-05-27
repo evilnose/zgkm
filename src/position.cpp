@@ -4,6 +4,7 @@
 #include "utils.h"
 #include "logger.h"
 #include "hash.h"
+#include "notation.h"
 
 #include <cassert>
 #include <cctype>
@@ -36,7 +37,8 @@ Position::Position(const Position& other)
       enpassant_mask{other.enpassant_mask},
       halfmove_clock{other.halfmove_clock},
       fullmove_number{other.fullmove_number},
-      hash{other.hash} {}
+      hash{other.hash},
+      pos_counts{other.pos_counts} {}
 
 Position& Position::operator=(const Position& other) {
     side_to_move = other.side_to_move;
@@ -47,6 +49,7 @@ Position& Position::operator=(const Position& other) {
     halfmove_clock = other.halfmove_clock;
     fullmove_number = other.fullmove_number;
     hash = other.hash;
+    pos_counts = other.pos_counts;
     return *this;
 }
 
@@ -184,7 +187,6 @@ void Position::make_move(Move move) {
         // std::cout << "first " << hash << std::endl;
         pos_counts[hash] = 1;
     } else {
-        // std::cout << "second " << hash << std::endl;
         it->second++;
     }
 
@@ -295,16 +297,17 @@ Bitboard Position::get_attackers(Square target_sq, Color atk_color) const {
 }
 
 // TODO add more members in Position to make this more optimized
-void Position::get_piece(Square sq, Color& c_out, PieceType& p_out) const {
+bool Position::get_piece(Square sq, Color& c_out, PieceType& p_out) const {
     Bitboard mask = bboard::mask_square(sq);
     if (mask & get_color_bitboard(WHITE)) {
         c_out = WHITE;
     } else if (mask & get_color_bitboard(BLACK)) {
         c_out = BLACK;
     } else {
-        LOG(logERROR) << "there is no piece at the given square!";
-        assert(false);
-        exit(EXIT_FAILURE);
+        // LOG(logERROR) << "there is no piece at the given square!";
+        // assert(false);
+        // exit(EXIT_FAILURE);
+        return false;
     }
 
     if (mask & get_piece_bitboard(PAWN)) {
@@ -320,10 +323,12 @@ void Position::get_piece(Square sq, Color& c_out, PieceType& p_out) const {
     } else if (mask & get_piece_bitboard(KING)) {
         p_out = KING;
     } else {
-        LOG(logERROR) << "there is no piece at the given square!";
-        assert(false);
-        exit(EXIT_FAILURE);
+        // LOG(logERROR) << "there is no piece at the given square!";
+        // assert(false);
+        // exit(EXIT_FAILURE);
+        return false;
     }
+    return true;
 }
 
 Bitboard Position::get_attack_mask(Color col) const {

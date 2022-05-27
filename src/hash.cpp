@@ -15,8 +15,8 @@ ZobristKey black_to_move;
 
 void zobrist::initialize() {
 	utils::PRNG prng(38520315250);  // NOTE: this seed was arbitrarily chosen
-	for (int i = 0; i < 64; i++) {
-		for (int j = 0; j < N_ZOBRIST_PIECES; j++) {
+	for (unsigned i = 0; i < 64; i++) {
+		for (unsigned j = 0; j < N_ZOBRIST_PIECES; j++) {
 			table[i][j] = prng.rand64();
 		}
 	}
@@ -83,7 +83,7 @@ void ht::Table::put(ht::Entry entry) {
 	}
 }
 
-static ht::Table g_table(4096);  // small default value
+static ht::Table g_table(8192 * 4);  // default value
 
 ht::Table& ht::global_table() {
 	return g_table;

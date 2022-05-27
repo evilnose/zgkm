@@ -31,6 +31,10 @@ inline bool move_square(Square& sq, const Direction& dir) {
     return move_square(sq, dir.d_rank, dir.d_file);
 }
 
+inline Square flip(Square sq) {
+    return (Square) ((int) sq ^ 56);
+}
+
 inline int popcount(unsigned long long n) {
     return __builtin_popcount((unsigned int)(n)) +
            __builtin_popcount((unsigned int)(n >> 32));

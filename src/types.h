@@ -5,6 +5,7 @@
 #include <string>
 
 // #define MAT_ONLY
+#define USE_PESTO 0
 
 using Bitboard = uint64_t;
 using ZobristKey = uint64_t;
@@ -12,7 +13,12 @@ using I8 = int8_t;
 using U64 = uint64_t;
 using Move = unsigned short;
 using CastlingRights = unsigned char;
+
+#if USE_PESTO
+using Score = int;  // centipawns
+#else
 using Score = float;
+#endif
 
 constexpr Bitboard RANK_A = 0xFF;
 constexpr Bitboard RANK_B = RANK_A << 8;

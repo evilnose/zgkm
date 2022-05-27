@@ -91,8 +91,9 @@ class Position {
         return piece_bitboards[ANY_PIECE] & bboard::mask_square(sq);
     };
 
-    // get color and piece type at the given square, but failing if no piece is there.
-    void get_piece(Square sq, Color& c_out, PieceType& p_out) const;
+    // get color and piece type at the given square, if there is a piece there.
+    // returns whether a piece was there.
+    bool get_piece(Square sq, Color& c_out, PieceType& p_out) const;
 
     Bitboard get_attackers(Square target_sq, Color atk_color) const;
 
