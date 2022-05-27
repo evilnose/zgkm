@@ -96,7 +96,7 @@ void uci::loop()
     #if USE_PESTO
     string ENGINE_NAME = "ZGKM-PESTO-TABLE";
     #else
-    string ENGINE_NAME = "ZGKM-NO-TABLE";
+    string ENGINE_NAME = "ZGKM-TABLE";
     #endif
     #ifdef MAT_ONLY
         ENGINE_NAME += "-MAT-ONLY";

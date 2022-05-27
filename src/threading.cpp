@@ -342,7 +342,7 @@ Score Thread::depth_search(Score alpha, Score beta, int depth) {
         return SCORE_DRAW;
     }
 
-    if (false && ht::global_table().contains(root_pos.get_hash())) {
+    if (ht::global_table().contains(root_pos.get_hash())) {
         ht::Entry entry = ht::global_table().get(root_pos.get_hash());
         if (entry.depth >= depth - state.cur_depth) {
             state.tt_hits++;
