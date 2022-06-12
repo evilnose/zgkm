@@ -15,6 +15,15 @@ struct PosState {
     int halfmove_clock; 
 };
 
+struct SquareInfo {
+    PieceType ptype;
+    Color color;
+};
+
+constexpr SquareInfo NULL_SQUARE_INFO{NO_PIECE, N_COLORS};
+
+inline bool has_piece(const SquareInfo& sinfo) { return sinfo.ptype != NO_PIECE; }
+
 class Position {
    public:
     // initialize to starting position
@@ -91,9 +100,7 @@ class Position {
         return piece_bitboards[ANY_PIECE] & bboard::mask_square(sq);
     };
 
-    // get color and piece type at the given square, if there is a piece there.
-    // returns whether a piece was there.
-    bool get_piece(Square sq, Color& c_out, PieceType& p_out) const;
+    SquareInfo get_piece(Square sq) const;
 
     Bitboard get_attackers(Square target_sq, Color atk_color) const;
 
@@ -204,10 +211,12 @@ class Position {
 
     std::stack<PosState> history;
 
-    std::unordered_map<ZobristKey, unsigned> pos_counts;
-
 	// incrementally updated zobrist hash
     ZobristKey hash;
+
+    std::unordered_map<ZobristKey, unsigned> pos_counts;
+
+    std::array<SquareInfo, 64> info_board;
 
     // clear all pieces and state
     void clear();

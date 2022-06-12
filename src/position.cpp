@@ -38,7 +38,8 @@ Position::Position(const Position& other)
       halfmove_clock{other.halfmove_clock},
       fullmove_number{other.fullmove_number},
       hash{other.hash},
-      pos_counts{other.pos_counts} {}
+      pos_counts{other.pos_counts},
+      info_board{other.info_board} {}
 
 Position& Position::operator=(const Position& other) {
     side_to_move = other.side_to_move;
@@ -50,6 +51,7 @@ Position& Position::operator=(const Position& other) {
     fullmove_number = other.fullmove_number;
     hash = other.hash;
     pos_counts = other.pos_counts;
+    info_board = other.info_board;
     return *this;
 }
 
@@ -115,66 +117,62 @@ void Position::make_move(Move move) {
         Square tgt = get_move_target(move);
         Bitboard src_mask = bboard::mask_square(src);
         Bitboard tgt_mask = bboard::mask_square(tgt);
-        Color src_color;
-        Color tgt_color;
-        PieceType src_piece;
-        PieceType tgt_piece;
         bool is_capture = false;  // used later for 50-move rule
 
         // remove captured piece if move is capture
         // NOTE: does NOT account for EP
         if (get_all_bitboard() & tgt_mask) {
             is_capture = true;
-            get_piece(tgt, tgt_color, tgt_piece);
-            remove_piece(tgt, tgt_color, tgt_piece);
+            SquareInfo tgt_sinfo = get_piece(tgt);
+            remove_piece(tgt, tgt_sinfo.color, tgt_sinfo.ptype);
 
-            cur_state.captured_piece = tgt_piece;
+            cur_state.captured_piece = tgt_sinfo.ptype;
 
             // remove castling rights for opponent if rook captured
-            if (tgt_piece == ROOK && (tgt_mask & ROOK_FILES &
-                                      (tgt_color == WHITE ? RANK_A : RANK_H))) {
+            if (tgt_sinfo.ptype == ROOK && (tgt_mask & ROOK_FILES &
+                                      (tgt_sinfo.color == WHITE ? RANK_A : RANK_H))) {
                 BoardSide side = (BoardSide)(!utils::sq_file(tgt));
-                castling_rights &= ~utils::to_castling_rights(tgt_color, side);
+                castling_rights &= ~utils::to_castling_rights(tgt_sinfo.color, side);
             }
         }
 
         // remove src piece from its src location
         // do this for all move types here, except castling
-        get_piece(src, src_color, src_piece);
-        remove_piece(src, src_color, src_piece);
-        fullmove_number += (int)src_color;
+        SquareInfo src_sinfo = get_piece(src);
+        remove_piece(src, src_sinfo.color, src_sinfo.ptype);
+        fullmove_number += (int)src_sinfo.color;
 
         // update src piece type if promotion
         if (type == PROMOTION) {
-            src_piece = get_move_promotion(move);
+            src_sinfo.ptype = get_move_promotion(move);
         } else if (type == ENPASSANT) {
             // if en-passant, remove captured piece at square
-            Color rmv_color = utils::opposite_color(src_color);
+            Color rmv_color = utils::opposite_color(src_sinfo.color);
             Square rmv = tgt;
             utils::move_square(rmv, utils::pawn_direction(rmv_color), 0);
             // remove EP captured pawn
             remove_piece(rmv, rmv_color, PAWN);
             // don't need the following line b/c enpassant implies pawn
             // cur_state.captured_piece = tgt_piece;
-        } else if (src_piece == PAWN && abs((int)tgt - (int)src) == 16) {
+        } else if (src_sinfo.ptype == PAWN && abs((int)tgt - (int)src) == 16) {
             // double pawn push, so update en-passant mask
             // TODO no-branch-if in condition?
             enpassant_mask = bboard::mask_square((Square)(((int)tgt + (int)src) / 2));
         }
 
         // place src piece at its new location
-        add_piece(tgt, src_color, src_piece);
+        add_piece(tgt, src_sinfo.color, src_sinfo.ptype);
 
-        if (src_piece == KING) {
-            castling_rights &= ~utils::to_castling_rights(src_color);
-        } else if ((src_piece == ROOK) && (src_mask & ROOK_FILES)) {
+        if (src_sinfo.ptype == KING) {
+            castling_rights &= ~utils::to_castling_rights(src_sinfo.color);
+        } else if ((src_sinfo.ptype == ROOK) && (src_mask & ROOK_FILES)) {
             // if file is 0, then boardSide is !0 = 1 (queenside) and etc.
             BoardSide side = (BoardSide)(!utils::sq_file(src));
-            castling_rights &= ~utils::to_castling_rights(src_color, side);
+            castling_rights &= ~utils::to_castling_rights(src_sinfo.color, side);
         }
 
         // for 50-move rule. If is capture or piece is pawn, reset halfmove_clock
-        halfmove_clock *= !(is_capture || src_piece == PAWN);
+        halfmove_clock *= !(is_capture || src_sinfo.ptype == PAWN);
     }
 
     history.push(cur_state);
@@ -227,20 +225,20 @@ void Position::unmake_move(Move move) {
     } else {
         Square src = get_move_source(move);
         Square tgt = get_move_target(move);
-        Color src_color;
+        // Color src_color;
         // Color tgt_color;
-        PieceType src_piece;
+        // PieceType src_piece;
         // PieceType tgt_piece;
 
         // remove src piece from tgt location
         // do this for all move types here
-        get_piece(tgt, src_color, src_piece);
-        fullmove_number -= (int)src_color;
-        remove_piece(tgt, src_color, src_piece);
+        SquareInfo src_sinfo = get_piece(tgt);
+        fullmove_number -= (int)src_sinfo.color;
+        remove_piece(tgt, src_sinfo.color, src_sinfo.ptype);
 
         if (type == ENPASSANT) {
             // if en-passant, update tgt_square
-            Color rmv_color = utils::opposite_color(src_color);
+            Color rmv_color = utils::opposite_color(src_sinfo.color);
             Square rmv = tgt;
             utils::move_square(rmv, utils::pawn_direction(rmv_color), 0);
             // restore captured pawn
@@ -248,17 +246,17 @@ void Position::unmake_move(Move move) {
         } else {
             if (type == PROMOTION) {
                 // restore src piece type if promotion
-                src_piece = PAWN;
+                src_sinfo.ptype = PAWN;
             }
 
             // restore captured piece
             if (last_state.captured_piece != NO_PIECE) {
-                add_piece(tgt, utils::opposite_color(src_color), last_state.captured_piece);
+                add_piece(tgt, utils::opposite_color(src_sinfo.color), last_state.captured_piece);
             }
         }
 
         // place src piece back
-        add_piece(src, src_color, src_piece);
+        add_piece(src, src_sinfo.color, src_sinfo.ptype);
     }
 
     side_to_move = utils::opposite_color(side_to_move);
@@ -296,39 +294,8 @@ Bitboard Position::get_attackers(Square target_sq, Color atk_color) const {
     return mask;
 }
 
-// TODO add more members in Position to make this more optimized
-bool Position::get_piece(Square sq, Color& c_out, PieceType& p_out) const {
-    Bitboard mask = bboard::mask_square(sq);
-    if (mask & get_color_bitboard(WHITE)) {
-        c_out = WHITE;
-    } else if (mask & get_color_bitboard(BLACK)) {
-        c_out = BLACK;
-    } else {
-        // LOG(logERROR) << "there is no piece at the given square!";
-        // assert(false);
-        // exit(EXIT_FAILURE);
-        return false;
-    }
-
-    if (mask & get_piece_bitboard(PAWN)) {
-        p_out = PAWN;
-    } else if (mask & get_piece_bitboard(KNIGHT)) {
-        p_out = KNIGHT;
-    } else if (mask & get_piece_bitboard(BISHOP)) {
-        p_out = BISHOP;
-    } else if (mask & get_piece_bitboard(ROOK)) {
-        p_out = ROOK;
-    } else if (mask & get_piece_bitboard(QUEEN)) {
-        p_out = QUEEN;
-    } else if (mask & get_piece_bitboard(KING)) {
-        p_out = KING;
-    } else {
-        // LOG(logERROR) << "there is no piece at the given square!";
-        // assert(false);
-        // exit(EXIT_FAILURE);
-        return false;
-    }
-    return true;
+SquareInfo Position::get_piece(Square sq) const {
+    return info_board[sq];
 }
 
 Bitboard Position::get_attack_mask(Color col) const {
@@ -385,6 +352,8 @@ void Position::add_piece(Square sq, Color c, PieceType piece) {
     piece_bitboards[(int)piece] |= mask;
     piece_bitboards[ANY_PIECE] |= mask;
     color_bitboards[(int)c] |= mask;
+
+    info_board[sq] = SquareInfo{piece, c};
     
     hash ^= zobrist::get_key(sq, piece, c);
 }
@@ -394,6 +363,8 @@ void Position::remove_piece(Square sq, Color c, PieceType piece) {
     piece_bitboards[(int)piece] &= mask;
     piece_bitboards[ANY_PIECE] &= mask;
     color_bitboards[(int)c] &= mask;
+
+    info_board[sq] = NULL_SQUARE_INFO;
 
     hash ^= zobrist::get_key(sq, piece, c);
 }
@@ -454,6 +425,7 @@ void Position::clear() {
     fullmove_number = 1;
     history = {};
     hash = 0;
+    info_board.fill(NULL_SQUARE_INFO);
 }
 
 ZobristKey Position::compute_hash() {

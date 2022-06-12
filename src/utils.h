@@ -160,13 +160,13 @@ class Timer {
         start = system_clock::now();
     }
 
-    inline double elapsed_secs() {
+    inline double elapsed_secs() const {
         auto cur = system_clock::now();
         std::chrono::duration<double> elapsed_seconds = cur - start;
         return elapsed_seconds.count();
     }
 
-    inline double elapsed_millis() {
+    inline double elapsed_millis() const {
         return elapsed_secs() * 1000;
     }
 

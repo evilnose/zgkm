@@ -284,13 +284,11 @@ Score evaluate(const Position& pos)
 
     /* evaluate each piece */
     for (Square sq = SQ_A1; sq <= SQ_H8; sq++) {
-        Color color;
-        PieceType piece;
-        bool has_piece = pos.get_piece(sq, color, piece);
-        if (has_piece) {
-            int pc = piece * 2 + color;  // piece and color index
-            mg[color] += mg_table[pc][sq];
-            eg[color] += eg_table[pc][sq];
+        SquareInfo sinfo = pos.get_piece(sq);
+        if (has_piece(sinfo)) {
+            int pc = sinfo.ptype * 2 + sinfo.color;  // piece and color index
+            mg[sinfo.color] += mg_table[pc][sq];
+            eg[sinfo.color] += eg_table[pc][sq];
             game_phase += gamephaseInc[pc];
         }
     }

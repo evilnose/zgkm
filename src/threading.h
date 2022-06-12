@@ -23,6 +23,7 @@ struct SearchState {
    Score best_eval;
    std::vector<Move> pv;
    int cur_depth;
+   int max_depth_searched;
    int tt_hits;  // transposition table hits
    int tt_collisions;
 };
@@ -45,6 +46,10 @@ class Thread {
     virtual void start_search();
     // whether a search is already in place
     bool is_searching();
+    void diagnostics() {
+      //  std::cout << "Printing Diagnostics" << std::endl;
+      //  std::cout << state.cur_depth << std::endl;
+    }
 
    private:
 
@@ -52,21 +57,29 @@ class Thread {
     bool am_main();
 
     void thread_func();
+
     // helper search function using members such as SearchLimit.
     void search();
-    // search for a fixed number of plies from root_pos, based on cur_depth and 
+
+    bool probe_tt(Score& alpha, Score& beta, int depth, const std::vector<Move>& moves, Move& pv_move, Score &out_eval);
+
+    // search for a fixed number of plies from position, based on cur_depth and 
     Score depth_search(Score alpha, Score beta, int depth);
+
+    // quiescence search
+    Score qsearch(Score alpha, Score beta);
 
     bool check_return();
 
     bool check_tc_return();
+
 
     std::thread inner_thread;
     std::condition_variable start_cv;
     std::mutex start_m;
     bool start_flag;
 
-    Position root_pos;
+    Position position;
     SearchLimit limit;
     SearchState state;
     // zeroed at the start of search

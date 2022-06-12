@@ -180,8 +180,8 @@ bool gen_legal_moves(const Position& pos, vector<Move>& moves) {
                     if (d_rank * utils::pawn_direction(atk_c) > 0) {
                         // one potential pawn capture
                         Square t_sq = sq;
-                        bool good = utils::move_square(t_sq, utils::sgn(d_rank), utils::sgn(d_file));
-                        assert(good);
+                        utils::move_square(t_sq, utils::sgn(d_rank), utils::sgn(d_file));
+                        // assert(good);
                         Bitboard tar_mask = bboard::mask_square(t_sq);
                         if (tar_mask & enpassant) {
                             add_enpassant(moves, sq, enpassant_sq);
@@ -278,19 +278,19 @@ bool gen_legal_moves(const Position& pos, vector<Move>& moves) {
             add_castling_move(moves, atk_c, QUEENSIDE);
         }
     } else if (n_checks == 1) {
-        Color dummy_c;
-        PieceType ptype;
+        // Color dummy_c;
+        // PieceType ptype;
         Square checker_sq = bboard::bitscan_fwd(checkers);
-        pos.get_piece(checker_sq, dummy_c, ptype);
-        assert(dummy_c == def_c);
+        SquareInfo sinfo = pos.get_piece(checker_sq);
+        assert(sinfo.color == def_c);
         // squares that can be captured for check evasion
         Bitboard capture_mask = checkers;
         // squares that can be blocked for check evasion
         // Note that this distinction is required b/c pawn has
         // different capture and push (block) squares
         Bitboard block_mask = 0ULL;
-        if (utils::is_slider(ptype)) {
-            switch (ptype) {
+        if (utils::is_slider(sinfo.ptype)) {
+            switch (sinfo.ptype) {
                 case BISHOP:
                     block_mask = bboard::bishop_attacks(king_sq, all_occ) &
                                  bboard::bishop_attacks(checker_sq, all_occ);

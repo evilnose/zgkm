@@ -52,6 +52,7 @@ void run_position(istringstream &iss)
         Move move = notation::parse_uci_move(pos, move_str);
         pos.make_move(move);
     }
+    // std::cout << notation::to_aligned_fen(pos) << std::endl;
 
     thread::set_position(pos);
 }
@@ -93,14 +94,25 @@ void uci::loop()
     string line;
     istringstream liness;
     string command;
+
     #if USE_PESTO
-    string ENGINE_NAME = "ZGKM-PESTO-TABLE";
+    string ENGINE_NAME = "ZGKM-PESTO";
     #else
-    string ENGINE_NAME = "ZGKM-TABLE";
+    string ENGINE_NAME = "ZGKM";
+    #endif
+    #if USE_TT
+    ENGINE_NAME += "-TABLE";
+    #endif
+    #if USE_MOVE_ORDERING
+    ENGINE_NAME += "-ORDERING";
+    #endif
+    #if USE_MOVE_ORDERING
+    ENGINE_NAME += "-QSEARCH";
     #endif
     #ifdef MAT_ONLY
         ENGINE_NAME += "-MAT-ONLY";
     #endif
+
     std::cerr << ENGINE_NAME << " (alpha) by Gary Geng" << std::endl;
     Position pos;
     istringstream temp(STARTING_FEN);
@@ -122,7 +134,7 @@ void uci::loop()
             }
             else if (command == "isready")
             {
-                cerr << "readyok" << endl;
+                cout << "readyok" << endl;
             }
             else if (command == "setoption")
             {
@@ -172,7 +184,7 @@ void uci::loop()
                     assert(slimit.depth > 0);
                 } else if (constraint == "movetime") {
                     slimit.fixed_time = std::stoi(value);
-                    assert(slimit.fixed_time > 0);
+                    if (slimit.fixed_time < 0) { slimit.fixed_time = 100; };
                 } else if (constraint == "infinite") {
                     // Don't set any constraints
                     // LOG(logWARNING) << "infinite constraint not actually implemented.";
@@ -188,6 +200,9 @@ void uci::loop()
 
             } else if (command == "stop") {
                 thread::stop_search();
+            } else if (command == "quit") {
+                thread::stop_search();
+                exit(0);
             } else {
                 LOG(logERROR) << "Unknown command: '" << command << "'";
             }

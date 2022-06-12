@@ -43,12 +43,7 @@ ht::Table::Table(size_t sz) : sz(sz), entries(sz, ht::Entry{}) {
 ht::Entry ht::Table::get(ZobristKey key) const {
 	size_t index = key % sz;
 	ht::Entry entry = entries[index];
-	if (entry.key == key) {
-		return entry;
-	} else {
-		// keys not equal, so return empty/null entry
-		return ht::Entry{};
-	}
+	return entry;
 }
 
 bool ht::Table::contains(ZobristKey key) const {

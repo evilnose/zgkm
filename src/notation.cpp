@@ -44,20 +44,18 @@ std::string notation::pretty_move(Move mv, const std::vector<Move>& legal_moves,
         bool is_capture =
             (pos.get_all_bitboard() & bboard::mask_square(tgt_sq)) ||
             mt == ENPASSANT;
-        Color color;
-        PieceType piece;
         Square src_sq = get_move_source(mv);
-        pos.get_piece(src_sq, color, piece);
-        if (piece == PAWN) {
+        SquareInfo sinfo = pos.get_piece(src_sq);
+        if (sinfo.ptype == PAWN) {
             if (is_capture) {
                 buf[bufidx++] = file_char(utils::sq_file(src_sq));
             }
         } else {
-            buf[bufidx++] = piece_char(piece);
+            buf[bufidx++] = piece_char(sinfo.ptype);
         }
 
-        Bitboard occ = pos.get_bitboard(color, piece);
-        if (!bboard::one_bit(occ) && piece != PAWN) {
+        Bitboard occ = pos.get_bitboard(sinfo.color, sinfo.ptype);
+        if (!bboard::one_bit(occ) && sinfo.ptype != PAWN) {
             char ambiguity = 0;  // 1 if some other piece is on the same rank, 2
                                  // if same file, 3 if both
             for (const Move& other_mv : legal_moves) {
@@ -68,7 +66,7 @@ std::string notation::pretty_move(Move mv, const std::vector<Move>& legal_moves,
                 // other move source has same piece and color as this piece,
                 // consider ambiguity
                 if (get_move_target(other_mv) == tgt_sq &&
-                    (pos.get_bitboard(color, piece) &
+                    (pos.get_bitboard(sinfo.color, sinfo.ptype) &
                      bboard::mask_square(other_src))) {
                     ambiguity |=
                         utils::sq_rank(src_sq) == utils::sq_rank(other_src);
@@ -135,25 +133,21 @@ std::string notation::dump_uci_move(Move mv) {
 
 Move notation::parse_uci_move(const Position& pos, const std::string& mv_str) {
     // test for castling moves
-    if (mv_str == "e1g1") {
+    if (mv_str == "e1g1" && pos.has_castling_rights(WHITE_OO)) {
         // white king-side castle
-        assert(pos.has_castling_rights(WHITE_OO));
         return create_castling_move(WHITE, KINGSIDE);
-    } else if (mv_str == "e1c1") {
-        assert(pos.has_castling_rights(WHITE_OOO));
+    } else if (mv_str == "e1c1" && pos.has_castling_rights(WHITE_OOO)) {
         return create_castling_move(WHITE, QUEENSIDE);
-    } else if (mv_str == "e8g8") {
-        assert(pos.has_castling_rights(BLACK_OO));
+    } else if (mv_str == "e8g8" && pos.has_castling_rights(BLACK_OO)) {
         return create_castling_move(BLACK, KINGSIDE);
-    } else if (mv_str == "e8c8") {
-        assert(pos.has_castling_rights(BLACK_OOO));
+    } else if (mv_str == "e8c8" && pos.has_castling_rights(BLACK_OOO)) {
         return create_castling_move(BLACK, QUEENSIDE);
     }
 
     const char* mv_buf = mv_str.c_str();
     Square src = parse_square(mv_buf);
     Square dest = parse_square(mv_buf + 2);
-    Color to_move = pos.get_side_to_move();
+    // Color to_move = pos.get_side_to_move();
 
     if (bboard::mask_square(dest) == pos.get_enpassant()) {
         // assert(pos.get_piece(src, to_move, out_piece) == PAWN);

@@ -5,7 +5,10 @@
 #include <string>
 
 // #define MAT_ONLY
-#define USE_PESTO 0
+#define USE_PESTO 1
+#define USE_TT 1
+#define USE_MOVE_ORDERING 1
+#define USE_QSEARCH 0
 
 using Bitboard = uint64_t;
 using ZobristKey = uint64_t;

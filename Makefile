@@ -34,14 +34,14 @@ OUT = out/zgkm.exe
 all : $(OUT)
 
 $(ODIR)/%.o: $(SDIR)/%.cpp $(SDIR)/%.h .buildmode
-	$(CC) -c $(INC) -o $@ $< $(CFLAGS)
+	$(CC) $(CFLAGS) -c $(INC) -o $@ $<
 
 $(ODIR)/%.o: $(TDIR)/%.cpp
-	$(CC) -c $(INC) -o $@ $< $(CFLAGS_TEST)
+	$(CC) $(CFLAGS_TEST) -c $(INC) -o $@ $<
 
 # main does not have a .h file
 $(ODIR)/main.o: $(SDIR)/main.cpp .buildmode
-	$(CC) -c $(INC) -o $@ $< $(CFLAGS)
+	$(CC) $(CFLAGS) -c $(INC) -o $@ $<
 
 $(OUT): $(OBJECTS) .buildmode
 	$(CC) $(CFLAGS) $(OBJECTS) $(LINK) -o $(OUT)
