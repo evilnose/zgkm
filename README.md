@@ -4,7 +4,12 @@
 gcc with C++17. Run `make` or `make DEBUG=1` or `make DEBUG=0`. `out/zgkm.exe` is the resulting
 (sort of) UCI-compliant engine.
 
-## Planned Goals an Features
+## Maintenance goals
+* delete `search.cpp` and `search.h`
+* resolve all the TODOs
+
+## Planned goals and features
+* parallel search
 * PV search
 * null window search
 * qsearch pruning
@@ -13,8 +18,9 @@ gcc with C++17. Run `make` or `make DEBUG=1` or `make DEBUG=0`. `out/zgkm.exe` i
 * Testing on Longer time controls
 * Opening book and endgame tablebases
 * Pondering
+* (possibly, maybe) my own hand-tuned eval
 
-## Current Features
+## gurrent features
 * basically working chess engine that plays maybe around 1800 on Lichess
 * bitboard & magic bitboard move generation
 * basic qsearch with no pruning
