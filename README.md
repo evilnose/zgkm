@@ -4,9 +4,14 @@
 gcc with C++17. Run `make` or `make DEBUG=1` or `make DEBUG=0`. `out/zgkm.exe` is the resulting
 (sort of) UCI-compliant engine.
 
-## Maintenance goals
-* delete `search.cpp` and `search.h`
-* resolve all the TODOs
+## Current features
+* basically working chess engine that plays maybe around 1800 on Lichess
+* bitboard & magic bitboard move generation
+* basic qsearch with no pruning
+* fixed-size TT
+* basic move ordering
+* PeSTO
+* basic time management
 
 ## Planned goals and features
 * parallel search
@@ -20,15 +25,9 @@ gcc with C++17. Run `make` or `make DEBUG=1` or `make DEBUG=0`. `out/zgkm.exe` i
 * Pondering
 * (possibly, maybe) my own hand-tuned eval
 
-## gurrent features
-* basically working chess engine that plays maybe around 1800 on Lichess
-* bitboard & magic bitboard move generation
-* basic qsearch with no pruning
-* fixed-size TT
-* basic move ordering
-* PeSTO
-* basic time management
-
+## Maintenance goals
+* delete `search.cpp` and `search.h`
+* resolve all the TODOs
 
 ## Tricky positions
 `position fen r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1`
